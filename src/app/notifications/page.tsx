@@ -6,9 +6,11 @@ import { AppLayout } from "@/components/app-layout"
 import { getStoredNotifications, markAllNotificationsRead, type AppNotification } from "@/lib/mock-data"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { useAppPreferences } from "@/components/app-preferences-provider"
 
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<AppNotification[]>([])
+  const { tx } = useAppPreferences()
 
   useEffect(() => {
     getStoredNotifications().then(data => {
@@ -30,11 +32,11 @@ export default function NotificationsPage() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Notifications</h1>
             <p className="text-muted-foreground">
-              Stay updated on your issues and mentions
+              {tx("Stay updated on your issues and mentions", "ইস্যু ও আপডেট সম্পর্কে সবসময় অবগত থাকুন")}
             </p>
           </div>
           <Button variant="outline" size="sm" onClick={handleMarkAsRead}>
-            Mark all as read
+            {tx("Mark all as read", "সব পড়া হিসেবে চিহ্নিত করুন")}
           </Button>
         </div>
 

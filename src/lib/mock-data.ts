@@ -352,32 +352,153 @@ export function getIssueStats(filteredIssues: Issue[] = issues) {
   }
 }
 
+const STORAGE_KEYS = {
+  issues: "uat:issues",
+  comments: "uat:comments",
+  notifications: "uat:notifications",
+} as const
+
+const hasSupabaseConfig = Boolean(
+  process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+)
+
+function canUseLocalStorage() {
+  return typeof window !== "undefined"
+}
+
+function readFromLocalStorage<T>(key: string, fallback: T): T {
+  if (!canUseLocalStorage()) return fallback
+
+  const raw = window.localStorage.getItem(key)
+  if (!raw) return fallback
+
+  try {
+    return JSON.parse(raw) as T
+  } catch {
+    return fallback
+  }
+}
+
+function writeToLocalStorage<T>(key: string, value: T): void {
+  if (!canUseLocalStorage()) return
+  window.localStorage.setItem(key, JSON.stringify(value))
+}
+
+function ensureMockDataSeeded(): void {
+  if (!canUseLocalStorage()) return
+
+  if (!window.localStorage.getItem(STORAGE_KEYS.issues)) {
+    writeToLocalStorage(STORAGE_KEYS.issues, issues)
+  }
+
+  if (!window.localStorage.getItem(STORAGE_KEYS.comments)) {
+    writeToLocalStorage(STORAGE_KEYS.comments, commentsData)
+  }
+
+  if (!window.localStorage.getItem(STORAGE_KEYS.notifications)) {
+    writeToLocalStorage(STORAGE_KEYS.notifications, mockNotifications)
+  }
+}
+
 // ── Supabase Helpers ──
 
 export async function getStoredIssues(): Promise<Issue[]> {
+  ensureMockDataSeeded()
+
+  if (!hasSupabaseConfig) {
+    return readFromLocalStorage<Issue[]>(STORAGE_KEYS.issues, issues)
+  }
+
   const { data, error } = await supabase
     .from('issues')
     .select('*')
     .order('createdAt', { ascending: false });
     
   if (error) {
-    console.error("Error fetching issues from Supabase:", error);
-    return [];
+    return readFromLocalStorage<Issue[]>(STORAGE_KEYS.issues, issues)
   }
-  return data as Issue[];
+
+  const resolvedIssues = (data as Issue[] | null) ?? []
+  if (resolvedIssues.length > 0) {
+    writeToLocalStorage(STORAGE_KEYS.issues, resolvedIssues)
+    return resolvedIssues
+  }
+
+  return readFromLocalStorage<Issue[]>(STORAGE_KEYS.issues, issues)
 }
 
 export async function addStoredIssue(issue: Issue): Promise<void> {
+  ensureMockDataSeeded()
+
+  if (!hasSupabaseConfig) {
+    const localIssues = readFromLocalStorage<Issue[]>(STORAGE_KEYS.issues, issues)
+    writeToLocalStorage(STORAGE_KEYS.issues, [issue, ...localIssues])
+    return
+  }
+
   const { error } = await supabase
     .from('issues')
     .insert([issue]);
     
   if (error) {
-    console.error("Error inserting issue into Supabase:", error);
+    const localIssues = readFromLocalStorage<Issue[]>(STORAGE_KEYS.issues, issues)
+    writeToLocalStorage(STORAGE_KEYS.issues, [issue, ...localIssues])
+    return
   }
+
+  const localIssues = readFromLocalStorage<Issue[]>(STORAGE_KEYS.issues, issues)
+  writeToLocalStorage(STORAGE_KEYS.issues, [issue, ...localIssues.filter((item) => item.id !== issue.id)])
+}
+
+export async function updateStoredIssue(issueId: string, updates: Partial<Issue>): Promise<void> {
+  ensureMockDataSeeded()
+
+  if (hasSupabaseConfig) {
+    await supabase
+      .from('issues')
+      .update(updates)
+      .eq('id', issueId)
+  }
+
+  const localIssues = readFromLocalStorage<Issue[]>(STORAGE_KEYS.issues, issues)
+  const nextIssues = localIssues.map((issue) =>
+    issue.id === issueId
+      ? {
+          ...issue,
+          ...updates,
+        }
+      : issue,
+  )
+  writeToLocalStorage(STORAGE_KEYS.issues, nextIssues)
+}
+
+export async function deleteStoredIssue(issueId: string): Promise<void> {
+  ensureMockDataSeeded()
+
+  if (hasSupabaseConfig) {
+    await supabase
+      .from('issues')
+      .delete()
+      .eq('id', issueId)
+  }
+
+  const localIssues = readFromLocalStorage<Issue[]>(STORAGE_KEYS.issues, issues)
+  writeToLocalStorage(
+    STORAGE_KEYS.issues,
+    localIssues.filter((issue) => issue.id !== issueId),
+  )
 }
 
 export async function getStoredComments(issueId?: string): Promise<IssueComment[]> {
+  ensureMockDataSeeded()
+
+  if (!hasSupabaseConfig) {
+    const localComments = readFromLocalStorage<IssueComment[]>(STORAGE_KEYS.comments, commentsData)
+    return issueId
+      ? localComments.filter((comment) => comment.issueId === issueId)
+      : localComments
+  }
+
   let query = supabase.from('comments').select('*').order('createdAt', { ascending: true });
   
   if (issueId) {
@@ -387,42 +508,101 @@ export async function getStoredComments(issueId?: string): Promise<IssueComment[
   const { data, error } = await query;
     
   if (error) {
-    console.error("Error fetching comments from Supabase:", error);
-    return [];
+    const localComments = readFromLocalStorage<IssueComment[]>(STORAGE_KEYS.comments, commentsData)
+    return issueId
+      ? localComments.filter((comment) => comment.issueId === issueId)
+      : localComments
   }
-  return data as IssueComment[];
+
+  const resolvedComments = (data as IssueComment[] | null) ?? []
+  if (resolvedComments.length > 0) {
+    writeToLocalStorage(STORAGE_KEYS.comments, resolvedComments)
+    return issueId
+      ? resolvedComments.filter((comment) => comment.issueId === issueId)
+      : resolvedComments
+  }
+
+  const localComments = readFromLocalStorage<IssueComment[]>(STORAGE_KEYS.comments, commentsData)
+  return issueId
+    ? localComments.filter((comment) => comment.issueId === issueId)
+    : localComments
 }
 
 export async function addStoredComment(comment: IssueComment): Promise<void> {
+  ensureMockDataSeeded()
+
+  if (!hasSupabaseConfig) {
+    const localComments = readFromLocalStorage<IssueComment[]>(STORAGE_KEYS.comments, commentsData)
+    writeToLocalStorage(STORAGE_KEYS.comments, [...localComments, comment])
+    return
+  }
+
   const { error } = await supabase
     .from('comments')
     .insert([comment]);
     
   if (error) {
-    console.error("Error inserting comment into Supabase:", error);
+    const localComments = readFromLocalStorage<IssueComment[]>(STORAGE_KEYS.comments, commentsData)
+    writeToLocalStorage(STORAGE_KEYS.comments, [...localComments, comment])
+    return
   }
+
+  const localComments = readFromLocalStorage<IssueComment[]>(STORAGE_KEYS.comments, commentsData)
+  writeToLocalStorage(STORAGE_KEYS.comments, [...localComments, comment])
 }
 
 export async function getStoredNotifications(): Promise<AppNotification[]> {
+  ensureMockDataSeeded()
+
+  if (!hasSupabaseConfig) {
+    return readFromLocalStorage<AppNotification[]>(STORAGE_KEYS.notifications, mockNotifications)
+  }
+
   const { data, error } = await supabase
     .from('notifications')
     .select('*')
     .order('createdAt', { ascending: false });
     
   if (error) {
-    console.error("Error fetching notifications from Supabase:", error);
-    return [];
+    return readFromLocalStorage<AppNotification[]>(STORAGE_KEYS.notifications, mockNotifications)
   }
-  return data as AppNotification[];
+
+  const resolvedNotifications = (data as AppNotification[] | null) ?? []
+  if (resolvedNotifications.length > 0) {
+    writeToLocalStorage(STORAGE_KEYS.notifications, resolvedNotifications)
+    return resolvedNotifications
+  }
+
+  return readFromLocalStorage<AppNotification[]>(STORAGE_KEYS.notifications, mockNotifications)
 }
 
 export async function markAllNotificationsRead(): Promise<void> {
-  const { error } = await supabase
-    .from('notifications')
-    .update({ isRead: true })
-    .eq('isRead', false);
-    
-  if (error) {
-    console.error("Error updating notifications in Supabase:", error);
+  ensureMockDataSeeded()
+
+  if (hasSupabaseConfig) {
+    await supabase
+      .from('notifications')
+      .update({ isRead: true })
+      .eq('isRead', false)
   }
+
+  const notifications = readFromLocalStorage<AppNotification[]>(STORAGE_KEYS.notifications, mockNotifications)
+  const nextNotifications = notifications.map((notification) => ({
+    ...notification,
+    isRead: true,
+  }))
+  writeToLocalStorage(STORAGE_KEYS.notifications, nextNotifications)
+}
+
+export async function addStoredNotification(notification: AppNotification): Promise<void> {
+  ensureMockDataSeeded()
+
+  if (hasSupabaseConfig) {
+    await supabase
+      .from('notifications')
+      .insert([notification])
+  }
+
+  const notifications = readFromLocalStorage<AppNotification[]>(STORAGE_KEYS.notifications, mockNotifications)
+  writeToLocalStorage(STORAGE_KEYS.notifications, [notification, ...notifications])
 }

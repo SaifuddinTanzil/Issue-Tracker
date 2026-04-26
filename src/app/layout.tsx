@@ -3,6 +3,9 @@ import "./globals.css";
 import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { AuthProvider } from "@/components/auth-provider";
+import { ThemeProvider } from "@/components/theme-provider";
+import { AppPreferencesProvider } from "@/components/app-preferences-provider";
+import { Toaster } from "@/components/ui/toaster";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
@@ -31,8 +34,15 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="min-h-screen bg-background antialiased selection:bg-primary/20">
-        <AuthProvider>{children}</AuthProvider>
+      <body className="min-h-screen bg-background antialiased selection:bg-primary/20" suppressHydrationWarning>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <AppPreferencesProvider>
+            <AuthProvider>
+              {children}
+              <Toaster />
+            </AuthProvider>
+          </AppPreferencesProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

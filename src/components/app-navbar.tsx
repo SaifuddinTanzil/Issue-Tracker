@@ -2,10 +2,10 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { Menu, ChevronDown, Bell } from "lucide-react"
+import { Menu, Bell, Moon, Sun } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
-import { useRouter } from "next/navigation"
+import { useTheme } from "next-themes"
 import {
   Select,
   SelectContent,
@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,14 +22,17 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { applications, getStoredNotifications, markAllNotificationsRead, type AppNotification } from "@/lib/mock-data"
+import { getStoredNotifications, markAllNotificationsRead, type AppNotification } from "@/lib/mock-data"
 import { useAuth } from "@/components/auth-provider"
 import { useEffect } from "react"
+import { useAppPreferences } from "@/components/app-preferences-provider"
 
 export function AppNavbar() {
   const [open, setOpen] = useState(false)
-  const router = useRouter()
   const { user, userProfile, signOut } = useAuth()
+  const { theme, setTheme } = useTheme()
+  const { language, setLanguage, tx } = useAppPreferences()
+  const isDark = theme === "dark"
 
   const handleLogout = async () => {
     await signOut()
@@ -72,21 +76,21 @@ export function AppNavbar() {
                 onClick={() => setOpen(false)}
                 className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
               >
-                Dashboard
+                {tx("Dashboard", "ড্যাশবোর্ড")}
               </Link>
               <Link
                 href="/issues"
                 onClick={() => setOpen(false)}
                 className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
               >
-                Issues
+                {tx("Issues", "ইস্যু")}
               </Link>
               <Link
                 href="/submit"
                 onClick={() => setOpen(false)}
                 className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
               >
-                Submit Issue
+                {tx("Submit Issue", "ইস্যু জমা দিন")}
               </Link>
             </nav>
           </SheetContent>
@@ -99,6 +103,24 @@ export function AppNavbar() {
 
         {/* Right: Notifications & User Avatar */}
         <div className="ml-auto flex items-center gap-2">
+          <div className="hidden items-center gap-2 rounded-md border px-2 py-1.5 md:flex">
+            {isDark ? <Moon className="size-3.5 text-muted-foreground" /> : <Sun className="size-3.5 text-muted-foreground" />}
+            <Switch
+              checked={isDark}
+              onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")}
+              aria-label="Toggle theme"
+            />
+          </div>
+
+          <Select value={language} onValueChange={(value) => setLanguage(value as "en" | "bn")}>
+            <SelectTrigger className="h-8 w-[96px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="en">English</SelectItem>
+              <SelectItem value="bn">বাংলা</SelectItem>
+            </SelectContent>
+          </Select>
           
           <DropdownMenu onOpenChange={handleNotificationsOpen}>
             <DropdownMenuTrigger asChild>
@@ -112,7 +134,7 @@ export function AppNavbar() {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-80">
               <div className="flex items-center justify-between p-2">
-                <h4 className="font-semibold text-sm">Notifications</h4>
+                <h4 className="font-semibold text-sm">{tx("Notifications", "নোটিফিকেশন")}</h4>
               </div>
               <DropdownMenuSeparator />
               {recentNotifications.length > 0 ? (
@@ -128,13 +150,13 @@ export function AppNavbar() {
                 </div>
               ) : (
                 <div className="py-4 px-2 text-center text-sm text-muted-foreground">
-                  No notifications
+                  {tx("No notifications", "কোনও নোটিফিকেশন নেই")}
                 </div>
               )}
               <DropdownMenuSeparator />
               <div className="p-2">
                 <Button variant="outline" size="sm" className="w-full text-xs" asChild>
-                  <Link href="/notifications">See all notifications</Link>
+                  <Link href="/notifications">{tx("See all notifications", "সব নোটিফিকেশন দেখুন")}</Link>
                 </Button>
               </div>
             </DropdownMenuContent>
@@ -159,11 +181,11 @@ export function AppNavbar() {
               </div>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
-                <Link href="/profile" className="cursor-pointer w-full">Profile / Settings</Link>
+                <Link href="/profile" className="cursor-pointer w-full">{tx("Profile / Settings", "প্রোফাইল / সেটিংস")}</Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
-                Log out
+                {tx("Log out", "লগ আউট")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

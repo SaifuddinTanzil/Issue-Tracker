@@ -4,6 +4,13 @@ import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card"
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -11,15 +18,21 @@ import { AppLayout } from "@/components/app-layout";
 import { useAuth } from "@/components/auth-provider";
 import { createClient } from "@/lib/supabase/client";
 import { useEffect } from "react";
+import { applications, addStoredNotification } from "@/lib/mock-data"
+import { submitAccessRequest } from "@/lib/access-control"
+import { useAppPreferences } from "@/components/app-preferences-provider"
 
 export default function ProfilePage() {
   const router = useRouter();
   const { user, userProfile, refreshProfile, signOut, updateProfile } = useAuth();
+  const { tx } = useAppPreferences()
   const supabase = createClient();
 
   const [fullName, setFullName] = useState(userProfile?.name || user?.email?.split('@')[0] || "");
   const [isSaving, setIsSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
+  const [requestedApp, setRequestedApp] = useState("")
+  const [requestMsg, setRequestMsg] = useState("")
 
   useEffect(() => {
     if (userProfile) {
@@ -58,14 +71,33 @@ export default function ProfilePage() {
     await signOut();
   };
 
+  const handleAccessRequest = async () => {
+    if (!user?.email || !requestedApp) return
+
+    await submitAccessRequest(user.email, requestedApp)
+    await addStoredNotification({
+      id: `notif-${Date.now()}`,
+      userId: "admin@company.com",
+      title: "New Access Request",
+      message: `${user.email} requested access to ${requestedApp}.`,
+      isRead: false,
+      createdAt: new Date().toISOString(),
+      linkHref: "/dashboard/admin",
+    })
+
+    setRequestMsg(tx("Access request submitted to Admin.", "অ্যাক্সেস অনুরোধ অ্যাডমিনের কাছে পাঠানো হয়েছে।"))
+    setRequestedApp("")
+    setTimeout(() => setRequestMsg(""), 3000)
+  }
+
   return (
     <AppLayout>
       <div className="mx-auto max-w-4xl pt-4">
         <Card>
           <CardHeader className="flex flex-col space-y-2">
-            <h2 className="text-xl font-semibold">Account Settings</h2>
+            <h2 className="text-xl font-semibold">{tx("Account Settings", "অ্যাকাউন্ট সেটিংস")}</h2>
             <p className="text-sm text-muted-foreground">
-              View and edit your basic profile information.
+              {tx("View and edit your basic profile information.", "আপনার প্রোফাইল তথ্য দেখুন এবং সম্পাদনা করুন।")}
             </p>
           </CardHeader>
 
@@ -73,6 +105,11 @@ export default function ProfilePage() {
             {successMsg && (
               <div className="md:col-span-2 bg-emerald-500/15 text-emerald-600 text-sm p-3 rounded-md">
                 {successMsg}
+              </div>
+            )}
+            {requestMsg && (
+              <div className="md:col-span-2 bg-blue-500/15 text-blue-600 text-sm p-3 rounded-md">
+                {requestMsg}
               </div>
             )}
             {/* Read‑only Email */}
@@ -97,22 +134,43 @@ export default function ProfilePage() {
                 placeholder="Your full name"
               />
             </div>
+
+            <div className="space-y-2 md:col-span-2 border-t pt-4">
+              <Label>{tx("Request App Access", "অ্যাপ অ্যাক্সেস অনুরোধ")}</Label>
+              <div className="flex flex-col gap-2 md:flex-row">
+                <Select value={requestedApp} onValueChange={setRequestedApp}>
+                  <SelectTrigger className="md:w-[320px]">
+                    <SelectValue placeholder={tx("Select an application", "একটি অ্যাপ নির্বাচন করুন")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {applications.map((app) => (
+                      <SelectItem key={app.id} value={app.name}>
+                        {app.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button type="button" variant="outline" onClick={handleAccessRequest} disabled={!requestedApp}>
+                  {tx("Request Access", "অ্যাক্সেস অনুরোধ")}
+                </Button>
+              </div>
+            </div>
           </CardContent>
 
           <CardFooter className="flex flex-col gap-2 md:flex-row md:justify-between">
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setFullName(userProfile?.name || user?.email?.split('@')[0] || "")} disabled={isSaving}>
-                Cancel
+                {tx("Cancel", "বাতিল")}
               </Button>
               <Button onClick={handleSave} disabled={isSaving}>
-                {isSaving ? "Saving..." : "Save Changes"}
+                {isSaving ? tx("Saving...", "সংরক্ষণ হচ্ছে...") : tx("Save Changes", "পরিবর্তন সংরক্ষণ")}
               </Button>
             </div>
             <Button
               variant="destructive"
               onClick={handleSignOut}
             >
-              Sign Out
+              {tx("Sign Out", "সাইন আউট")}
             </Button>
           </CardFooter>
         </Card>

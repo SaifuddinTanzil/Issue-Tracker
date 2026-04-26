@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Upload, AlertTriangle, ImageIcon, CheckCircle2 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -19,8 +19,9 @@ import {
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { AppLayout } from "@/components/app-layout"
 import { useAuth } from "@/components/auth-provider"
-import { applications, categoryConfig, addStoredIssue, getStoredIssues, type Issue, type Severity, type Category, type Environment } from "@/lib/mock-data"
+import { applications, categoryConfig, addStoredIssue, getStoredIssues, addStoredNotification, type Issue, type Severity, type Category, type Environment } from "@/lib/mock-data"
 import { cn } from "@/lib/utils"
+import { getAllowedAppsForUser } from "@/lib/access-control"
 
 const environments = [
   { value: "uat", label: "UAT" },
@@ -45,6 +46,15 @@ export default function SubmitIssuePage() {
   const [files, setFiles] = useState<File[]>([])
   const [submitted, setSubmitted] = useState(false)
   const { user, userProfile } = useAuth()
+  const [allowedApps, setAllowedApps] = useState<string[]>([])
+
+  useEffect(() => {
+    getAllowedAppsForUser(user?.email, userProfile?.role).then(setAllowedApps)
+  }, [user?.email, userProfile?.role])
+
+  const visibleApplications = allowedApps.includes("*")
+    ? applications
+    : applications.filter((app) => allowedApps.includes(app.name))
 
   const isUIUXCategory = formData.category === "ui-ux"
   const hasFiles = files.length > 0
@@ -122,6 +132,15 @@ export default function SubmitIssuePage() {
     }
 
     await addStoredIssue(newIssue)
+    await addStoredNotification({
+      id: `notif-${Date.now()}`,
+      userId: "admin@company.com",
+      title: "New Issue Submitted",
+      message: `${newIssue.reporter} submitted ${newIssue.id} in ${newIssue.application}.`,
+      isRead: false,
+      createdAt: new Date().toISOString(),
+      linkHref: `/issues/${newIssue.id}`,
+    })
 
     // Show success message
     setSubmitted(true)
@@ -184,13 +203,18 @@ export default function SubmitIssuePage() {
                         <SelectValue placeholder="Select application" />
                       </SelectTrigger>
                       <SelectContent>
-                        {applications.map((app) => (
+                        {visibleApplications.map((app) => (
                           <SelectItem key={app.id} value={app.id}>
                             {app.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
+                    {!allowedApps.includes("*") && visibleApplications.length === 0 && (
+                      <p className="text-xs text-destructive">
+                        You have no app access. Request app access from Profile page first.
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="environment">

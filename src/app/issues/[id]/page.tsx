@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Send, Trash2, ExternalLink, Calendar, User, Monitor } from "lucide-react"
+import { ArrowLeft, Send, Trash2, Calendar, User, Monitor } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -30,36 +30,47 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
 import { AppLayout } from "@/components/app-layout"
 import { StatusBadge, SeverityBadge, CategoryBadge } from "@/components/status-badge"
 import {
-  issues,
   users,
-  comments,
   statusConfig,
   severityConfig,
   categoryConfig,
+  addStoredNotification,
+  deleteStoredIssue,
+  updateStoredIssue,
+  type AppNotification,
   type IssueStatus,
   type Severity,
   type Category,
 } from "@/lib/mock-data"
 import { getStoredIssues, getStoredComments, addStoredComment, type Issue, type IssueComment } from "@/lib/mock-data"
+import { useToast } from "@/hooks/use-toast"
+import { canDeleteIssue, canUpdateIssue, getAllowedAppsForUser, getManagedUserByEmail } from "@/lib/access-control"
+import { useAppPreferences } from "@/components/app-preferences-provider"
 
 export default function IssueDetailPage() {
   const params = useParams()
   const router = useRouter()
   const issueId = params.id as string
   const { user, userProfile } = useAuth()
+  const { toast } = useToast()
+  const { tx } = useAppPreferences()
 
   const [allIssues, setAllIssues] = useState<Issue[]>([])
   const [localComments, setLocalComments] = useState<IssueComment[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [allowedApps, setAllowedApps] = useState<string[]>([])
+  const [resolvedRole, setResolvedRole] = useState<string>("Tester")
 
   const [status, setStatus] = useState<IssueStatus>("open")
   const [severity, setSeverity] = useState<Severity>("low")
   const [category, setCategory] = useState<Category>("bug")
   const [assignedTo, setAssignedTo] = useState("Unassigned")
   const [newComment, setNewComment] = useState("")
+  const [isSavingUpdates, setIsSavingUpdates] = useState(false)
 
   useEffect(() => {
     Promise.all([
@@ -80,7 +91,23 @@ export default function IssueDetailPage() {
     })
   }, [issueId])
 
+  useEffect(() => {
+    const loadPermissions = async () => {
+      const managedUser = await getManagedUserByEmail(user?.email)
+      const role = managedUser?.role || userProfile?.role || "Tester"
+      setResolvedRole(role)
+
+      const apps = await getAllowedAppsForUser(user?.email, role)
+      setAllowedApps(apps)
+    }
+
+    loadPermissions()
+  }, [user?.email, userProfile?.role])
+
   const issue = allIssues.find((i) => i.id === issueId) || allIssues[0]
+  const canEditIssue = canUpdateIssue(resolvedRole)
+  const canRemoveIssue = canDeleteIssue(resolvedRole)
+  const canViewIssue = allowedApps.includes("*") || allowedApps.includes(issue?.application)
 
   if (isLoading) {
     return (
@@ -92,8 +119,19 @@ export default function IssueDetailPage() {
     )
   }
 
+  if (!issue) {
+    return (
+      <AppLayout>
+        <div className="rounded-lg border bg-card p-6">
+          <h2 className="text-lg font-semibold">Issue not found</h2>
+          <Button className="mt-4" onClick={() => router.push("/issues")}>Back to Issues</Button>
+        </div>
+      </AppLayout>
+    )
+  }
+
   // Governance Rules
-  const currentUserRole: string = userProfile?.role || "Tester"
+  const currentUserRole: string = resolvedRole || userProfile?.role || "Tester"
   const currentUserName = userProfile?.name || user?.email?.split('@')[0] || "Unknown"
   const isReporter = issue.reporter === currentUserName || issue.reporter === user?.email || issue.reporter === user?.id
   const isAdminOrManager = currentUserRole === "Admin" || currentUserRole === "Manager"
@@ -111,7 +149,26 @@ export default function IssueDetailPage() {
   }
 
   const handleDelete = () => {
-    // Mock delete - in a real app, this would make an API call
+    if (!canRemoveIssue) {
+      toast({
+        title: "Permission denied",
+        description: "Only Admin can delete issues.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    deleteStoredIssue(issue.id)
+    const notification: AppNotification = {
+      id: `notif-${Date.now()}`,
+      userId: issue.reporter,
+      title: "Issue Deleted",
+      message: `${issue.id} was deleted by Admin.`,
+      isRead: false,
+      createdAt: new Date().toISOString(),
+      linkHref: "/issues",
+    }
+    addStoredNotification(notification)
     router.push("/issues")
   }
 
@@ -132,7 +189,84 @@ export default function IssueDetailPage() {
       setLocalComments([...localComments, newCommentObj])
       setNewComment("")
       await addStoredComment(newCommentObj)
+      await addStoredNotification({
+        id: `notif-${Date.now()}`,
+        userId: issue.reporter,
+        title: "New Comment",
+        message: `${currentUserName} commented on ${issue.id}.`,
+        isRead: false,
+        createdAt: new Date().toISOString(),
+        linkHref: `/issues/${issue.id}`,
+      })
     }
+  }
+
+  const handleSaveTicketUpdates = async () => {
+    if (!canEditIssue) {
+      toast({
+        title: "Permission denied",
+        description: "Your role cannot update this ticket.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsSavingUpdates(true)
+
+    // Mock persistence: apply sidebar edits to the local issue list.
+    setAllIssues((prevIssues) =>
+      prevIssues.map((item) =>
+        item.id === issue.id
+          ? {
+              ...item,
+              status,
+              severity,
+              category,
+              assignedTo,
+            }
+          : item,
+      ),
+    )
+
+    await updateStoredIssue(issue.id, {
+      status,
+      severity,
+      category,
+      assignedTo,
+    })
+
+    const notification: AppNotification = {
+      id: `notif-${Date.now()}`,
+      userId: issue.reporter,
+      title: "Issue Updated",
+      message: `${issue.id} was updated (${status}).`,
+      isRead: false,
+      createdAt: new Date().toISOString(),
+      linkHref: `/issues/${issue.id}`,
+    }
+    await addStoredNotification(notification)
+
+    await new Promise((resolve) => setTimeout(resolve, 450))
+    setIsSavingUpdates(false)
+
+    toast({
+      title: "Ticket updated",
+      description: "Changes saved and notification queued.",
+    })
+  }
+
+  if (!isLoading && issue && !canViewIssue) {
+    return (
+      <AppLayout>
+        <div className="rounded-lg border bg-card p-6">
+          <h2 className="text-lg font-semibold">Access denied</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            You do not currently have access to this application's tickets.
+          </p>
+          <Button className="mt-4" onClick={() => router.push("/issues")}>Back to Issues</Button>
+        </div>
+      </AppLayout>
+    )
   }
 
   return (
@@ -145,7 +279,7 @@ export default function IssueDetailPage() {
             className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="size-4" />
-            Back to Issues
+            {tx("Back to Issues", "ইস্যু তালিকায় ফিরে যান")}
           </Link>
         </div>
 
@@ -232,36 +366,42 @@ export default function IssueDetailPage() {
                     {issue.attachments.map((attachment, index) => {
                       const isDataUrl = attachment.startsWith("data:")
                       return (
-                        <div
-                          key={index}
-                          className="group relative aspect-video overflow-hidden rounded-lg border bg-muted"
-                        >
-                          {isDataUrl ? (
-                            <img
-                              src={attachment}
-                              alt={`Attachment ${index + 1}`}
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            <div className="flex h-full items-center justify-center text-muted-foreground">
-                              <span className="text-xs">Screenshot {index + 1}</span>
-                            </div>
-                          )}
-                          <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              onClick={() => {
-                                if (isDataUrl) {
-                                  window.open(attachment, "_blank")
-                                }
-                              }}
+                        <Dialog key={index}>
+                          <DialogTrigger asChild>
+                            <button
+                              type="button"
+                              className="group relative block aspect-video w-full overflow-hidden rounded-lg border bg-muted text-left"
                             >
-                              <ExternalLink className="mr-1.5 size-3" />
-                              View
-                            </Button>
-                          </div>
-                        </div>
+                              {isDataUrl ? (
+                                <img
+                                  src={attachment}
+                                  alt={`Attachment ${index + 1}`}
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                <div className="flex h-full items-center justify-center text-muted-foreground">
+                                  <span className="text-xs">Screenshot {index + 1}</span>
+                                </div>
+                              )}
+                              <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
+                                <span className="text-xs font-medium text-white">Click to zoom</span>
+                              </div>
+                            </button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-4xl p-2">
+                            {isDataUrl ? (
+                              <img
+                                src={attachment}
+                                alt={`Attachment ${index + 1} enlarged`}
+                                className="h-auto w-full rounded-md object-contain"
+                              />
+                            ) : (
+                              <div className="flex h-56 items-center justify-center rounded-md bg-muted text-sm text-muted-foreground">
+                                No preview available
+                              </div>
+                            )}
+                          </DialogContent>
+                        </Dialog>
                       )
                     })}
                   </div>
@@ -353,7 +493,7 @@ export default function IssueDetailPage() {
                     Status
                   </label>
                   <Select value={status} onValueChange={(v) => setStatus(v as IssueStatus)}>
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger className="w-full" disabled={!canEditIssue}>
                       <SelectValue>
                         <StatusBadge status={status} />
                       </SelectValue>
@@ -378,7 +518,7 @@ export default function IssueDetailPage() {
                     Severity
                   </label>
                   <Select value={severity} onValueChange={(v) => setSeverity(v as Severity)}>
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger className="w-full" disabled={!canEditIssue}>
                       <SelectValue>
                         <SeverityBadge severity={severity} showDot />
                       </SelectValue>
@@ -399,7 +539,7 @@ export default function IssueDetailPage() {
                     Category
                   </label>
                   <Select value={category} onValueChange={(v) => setCategory(v as Category)}>
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger className="w-full" disabled={!canEditIssue}>
                       <SelectValue>
                         <CategoryBadge category={category} />
                       </SelectValue>
@@ -420,7 +560,7 @@ export default function IssueDetailPage() {
                     Assigned To
                   </label>
                   <Select value={assignedTo} onValueChange={setAssignedTo}>
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger className="w-full" disabled={!canEditIssue}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -453,6 +593,14 @@ export default function IssueDetailPage() {
                     <span className="font-medium">{issue.module}</span>
                   </div>
                 </div>
+
+                <Button
+                  className="w-full"
+                  onClick={handleSaveTicketUpdates}
+                  disabled={isSavingUpdates || !canEditIssue}
+                >
+                  {isSavingUpdates ? "Saving..." : "Save Ticket Updates"}
+                </Button>
               </CardContent>
             </Card>
 
@@ -491,32 +639,34 @@ export default function IssueDetailPage() {
             )}
 
             {/* Delete Button */}
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive" className="w-full">
-                  <Trash2 className="mr-2 size-4" />
-                  Delete Issue
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete Issue</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Are you sure you want to delete this issue? This action cannot be undone
-                    and all associated comments and attachments will be permanently removed.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={handleDelete}
-                    className="bg-destructive text-white hover:bg-destructive/90"
-                  >
-                    Delete
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            {canRemoveIssue && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" className="w-full">
+                    <Trash2 className="mr-2 size-4" />
+                    {tx("Delete Issue", "ইস্যু মুছুন")}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Issue</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to delete this issue? This action cannot be undone
+                      and all associated comments and attachments will be permanently removed.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleDelete}
+                      className="bg-destructive text-white hover:bg-destructive/90"
+                    >
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
           </div>
         </div>
       </div>

@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { AppLayout } from "@/components/app-layout"
 import { useAuth } from "@/components/auth-provider"
+import { useAppPreferences } from "@/components/app-preferences-provider"
 import { StatusBadge, SeverityBadge, CategoryBadge } from "@/components/status-badge"
 import {
   issues,
@@ -37,6 +38,7 @@ import {
   type Category,
   type Issue,
 } from "@/lib/mock-data"
+import { getAllowedAppsForUser } from "@/lib/access-control"
 
 const environments = [
   { value: "uat", label: "UAT" },
@@ -45,6 +47,7 @@ const environments = [
 ]
 
 export default function MyIssuesPage() {
+  const { tx } = useAppPreferences()
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [severityFilter, setSeverityFilter] = useState<string>("all")
@@ -56,6 +59,7 @@ export default function MyIssuesPage() {
   
   const [localIssues, setLocalIssues] = useState<Issue[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [allowedApps, setAllowedApps] = useState<string[]>([])
 
   useEffect(() => {
     getStoredIssues().then(data => {
@@ -65,6 +69,13 @@ export default function MyIssuesPage() {
   }, [])
 
   const { user, userProfile } = useAuth()
+  const visibleApplications = allowedApps.includes("*")
+    ? applications
+    : applications.filter((app) => allowedApps.includes(app.name))
+
+  useEffect(() => {
+    getAllowedAppsForUser(user?.email, userProfile?.role).then(setAllowedApps)
+  }, [user?.email, userProfile?.role])
 
   // Only consider issues reported by the current user
   const myIssues = useMemo(() => {
@@ -78,7 +89,12 @@ export default function MyIssuesPage() {
   }, [localIssues, user, userProfile])
 
   const filteredIssues = useMemo(() => {
-    return myIssues.filter((issue) => {
+    const scopedIssues =
+      allowedApps.includes("*")
+        ? myIssues
+        : myIssues.filter((issue) => allowedApps.includes(issue.application))
+
+    return scopedIssues.filter((issue) => {
       const matchesSearch =
         searchQuery === "" ||
         issue.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -91,7 +107,7 @@ export default function MyIssuesPage() {
 
       return matchesSearch && matchesStatus && matchesSeverity && matchesCategory && matchesEnvironment && matchesApplication
     })
-  }, [myIssues, searchQuery, statusFilter, severityFilter, categoryFilter, environmentFilter, applicationFilter])
+  }, [myIssues, allowedApps, searchQuery, statusFilter, severityFilter, categoryFilter, environmentFilter, applicationFilter])
 
   const totalPages = Math.ceil(filteredIssues.length / itemsPerPage)
   const paginatedIssues = filteredIssues.slice(
@@ -121,9 +137,9 @@ export default function MyIssuesPage() {
         {/* Page Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">My Issues</h1>
+            <h1 className="text-2xl font-bold tracking-tight">{tx("My Issues", "আমার ইস্যু")}</h1>
             <p className="text-muted-foreground">
-              Issues submitted by you ({myIssues.length})
+              {tx("Issues submitted by you", "আপনার জমা দেওয়া ইস্যু")} ({myIssues.length})
             </p>
           </div>
         </div>
@@ -158,7 +174,7 @@ export default function MyIssuesPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Applications</SelectItem>
-              {applications.map((app) => (
+              {visibleApplications.map((app) => (
                 <SelectItem key={app.id} value={app.name}>
                   {app.name}
                 </SelectItem>
@@ -278,7 +294,7 @@ export default function MyIssuesPage() {
               ) : paginatedIssues.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
-                    No issues found matching your criteria.
+                    {tx("No issues found matching your criteria.", "আপনার ফিল্টার অনুযায়ী কোনও ইস্যু পাওয়া যায়নি।")}
                   </TableCell>
                 </TableRow>
               ) : (

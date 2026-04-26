@@ -22,6 +22,8 @@ import {
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { AppLayout } from "@/components/app-layout"
+import { useAuth } from "@/components/auth-provider"
+import { useAppPreferences } from "@/components/app-preferences-provider"
 import { StatusBadge, SeverityBadge, CategoryBadge } from "@/components/status-badge"
 import {
   issues,
@@ -35,6 +37,7 @@ import {
   type Category,
   type Issue,
 } from "@/lib/mock-data"
+import { getAllowedAppsForUser } from "@/lib/access-control"
 
 const environments = [
   { value: "uat", label: "UAT" },
@@ -43,6 +46,8 @@ const environments = [
 ]
 
 export default function IssuesPage() {
+  const { user, userProfile } = useAuth()
+  const { tx } = useAppPreferences()
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [severityFilter, setSeverityFilter] = useState<string>("all")
@@ -54,6 +59,7 @@ export default function IssuesPage() {
   
   const [localIssues, setLocalIssues] = useState<Issue[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [allowedApps, setAllowedApps] = useState<string[]>([])
 
   useEffect(() => {
     getStoredIssues().then(data => {
@@ -62,12 +68,23 @@ export default function IssuesPage() {
     })
   }, [])
 
-  // Simulating multi-app access - set to true to show filter, false to show static label
-  const hasMultiAppAccess = true
+  useEffect(() => {
+    getAllowedAppsForUser(user?.email, userProfile?.role).then(setAllowedApps)
+  }, [user?.email, userProfile?.role])
+
+  const hasMultiAppAccess = allowedApps.includes("*") || allowedApps.length > 1
   const singleAppName = "BRAC Microfinance Portal"
+  const visibleApplications = allowedApps.includes("*")
+    ? applications
+    : applications.filter((app) => allowedApps.includes(app.name))
 
   const filteredIssues = useMemo(() => {
-    return localIssues.filter((issue) => {
+    const scopedIssues =
+      allowedApps.includes("*")
+        ? localIssues
+        : localIssues.filter((issue) => allowedApps.includes(issue.application))
+
+    return scopedIssues.filter((issue) => {
       const matchesSearch =
         searchQuery === "" ||
         issue.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -80,7 +97,7 @@ export default function IssuesPage() {
 
       return matchesSearch && matchesStatus && matchesSeverity && matchesCategory && matchesEnvironment && matchesApplication
     })
-  }, [localIssues, searchQuery, statusFilter, severityFilter, categoryFilter, environmentFilter, applicationFilter])
+  }, [localIssues, allowedApps, searchQuery, statusFilter, severityFilter, categoryFilter, environmentFilter, applicationFilter])
 
   const totalPages = Math.ceil(filteredIssues.length / itemsPerPage)
   const paginatedIssues = filteredIssues.slice(
@@ -110,17 +127,17 @@ export default function IssuesPage() {
         {/* Page Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Issues</h1>
+            <h1 className="text-2xl font-bold tracking-tight">{tx("Issues", "ইস্যু")}</h1>
             <p className="text-muted-foreground">
               {hasMultiAppAccess ? (
-                "Browse and triage issues across all applications"
+                tx("Browse and triage issues across all applications", "সব অ্যাপ্লিকেশনের ইস্যু দেখুন ও সাজান")
               ) : (
-                <>Issues for <span className="font-medium text-foreground">{singleAppName}</span></>
+                <>{tx("Issues for", "ইস্যু:")} <span className="font-medium text-foreground">{singleAppName}</span></>
               )}
             </p>
           </div>
           <Link href="/submit">
-            <Button>Submit Issue</Button>
+            <Button>{tx("Submit Issue", "ইস্যু জমা দিন")}</Button>
           </Link>
         </div>
 
@@ -154,7 +171,7 @@ export default function IssuesPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Applications</SelectItem>
-              {applications.map((app) => (
+              {visibleApplications.map((app) => (
                 <SelectItem key={app.id} value={app.name}>
                   {app.name}
                 </SelectItem>
@@ -274,7 +291,7 @@ export default function IssuesPage() {
               ) : paginatedIssues.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
-                    No issues found matching your criteria.
+                    {tx("No issues found matching your criteria.", "আপনার ফিল্টার অনুযায়ী কোনও ইস্যু পাওয়া যায়নি।")}
                   </TableCell>
                 </TableRow>
               ) : (
