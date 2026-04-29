@@ -52,7 +52,7 @@ export default function ProfilePage() {
       email: user.email,
       name: fullName,
       avatar: userProfile?.avatar || fullName.substring(0, 2).toUpperCase(),
-      role: userProfile?.role || 'Tester'
+      role: userProfile?.role || 'Reporter'
     });
     
     if (!error) {
@@ -121,7 +121,7 @@ export default function ProfilePage() {
             {/* Read‑only Role */}
             <div className="space-y-1">
               <Label htmlFor="role">Role</Label>
-              <Input id="role" value={userProfile?.role || "Tester"} readOnly disabled className="bg-muted" />
+              <Input id="role" value={userProfile?.role || "Reporter"} readOnly disabled className="bg-muted" />
             </div>
 
             {/* Editable Full Name */}

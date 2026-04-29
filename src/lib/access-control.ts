@@ -1,4 +1,4 @@
-export type ManagedUserRole = "Admin" | "Manager" | "Resolver" | "Reporter" | "Tester"
+export type ManagedUserRole = "Admin" | "Manager" | "Resolver" | "Reporter"
 
 export interface ManagedUser {
   id: string
@@ -133,7 +133,7 @@ export async function submitAccessRequest(userEmail: string, requestedApp: strin
   return nextRequest
 }
 
-export async function approveAccessRequest(requestId: string, role: Exclude<ManagedUserRole, "Admin" | "Tester">): Promise<AccessRequest | null> {
+export async function approveAccessRequest(requestId: string, role: Exclude<ManagedUserRole, "Admin">): Promise<AccessRequest | null> {
   const requests = await getAccessRequests()
   const request = requests.find((item) => item.id === requestId)
 

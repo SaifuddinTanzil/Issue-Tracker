@@ -63,7 +63,7 @@ export default function IssueDetailPage() {
   const [localComments, setLocalComments] = useState<IssueComment[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [allowedApps, setAllowedApps] = useState<string[]>([])
-  const [resolvedRole, setResolvedRole] = useState<string>("Tester")
+  const [resolvedRole, setResolvedRole] = useState<string>("Reporter")
 
   const [status, setStatus] = useState<IssueStatus>("open")
   const [severity, setSeverity] = useState<Severity>("low")
@@ -94,7 +94,7 @@ export default function IssueDetailPage() {
   useEffect(() => {
     const loadPermissions = async () => {
       const managedUser = await getManagedUserByEmail(user?.email)
-      const role = managedUser?.role || userProfile?.role || "Tester"
+      const role = managedUser?.role || userProfile?.role || "Reporter"
       setResolvedRole(role)
 
       const apps = await getAllowedAppsForUser(user?.email, role)
@@ -131,7 +131,7 @@ export default function IssueDetailPage() {
   }
 
   // Governance Rules
-  const currentUserRole: string = resolvedRole || userProfile?.role || "Tester"
+  const currentUserRole: string = resolvedRole || userProfile?.role || "Reporter"
   const currentUserName = userProfile?.name || user?.email?.split('@')[0] || "Unknown"
   const isReporter = issue.reporter === currentUserName || issue.reporter === user?.email || issue.reporter === user?.id
   const isAdminOrManager = currentUserRole === "Admin" || currentUserRole === "Manager"

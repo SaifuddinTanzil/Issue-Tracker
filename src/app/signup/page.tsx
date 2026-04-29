@@ -50,7 +50,7 @@ export default function SignUpPage() {
         email: data.user.email,
         name: email.split('@')[0], // Use part of email as mock name
         avatar: email.substring(0, 2).toUpperCase(),
-        role: 'Tester'
+        role: 'Reporter'
       });
     }
 
