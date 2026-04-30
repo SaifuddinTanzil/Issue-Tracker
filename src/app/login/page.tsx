@@ -60,6 +60,11 @@ export default function LoginPage() {
             <div className="space-y-1">
               <Label htmlFor="password">Password</Label>
               <Input id="password" name="password" type="password" placeholder="••••••••" required />
+              <div className="flex justify-end pt-1">
+                <Link href="/forgot-password" className="text-sm font-medium text-primary underline underline-offset-4">
+                  Forgot Password?
+                </Link>
+              </div>
             </div>
           </CardContent>
 

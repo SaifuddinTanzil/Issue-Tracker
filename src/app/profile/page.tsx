@@ -21,6 +21,7 @@ import { useEffect } from "react";
 import { applications, addStoredNotification } from "@/lib/mock-data"
 import { submitAccessRequest } from "@/lib/access-control"
 import { useAppPreferences } from "@/components/app-preferences-provider"
+import { ChangePasswordForm } from "@/components/settings/change-password-form"
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -36,7 +37,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (userProfile) {
-      setFullName(userProfile.name);
+      setFullName(userProfile.name || user?.email?.split('@')[0] || "");
     } else if (user?.email) {
       setFullName(user.email.split('@')[0]);
     }
@@ -174,6 +175,18 @@ export default function ProfilePage() {
             </Button>
           </CardFooter>
         </Card>
+
+        <div className="mt-6">
+          <ChangePasswordForm
+            title={tx("Change Password", "পাসওয়ার্ড পরিবর্তন")}
+            description={tx(
+              "Use a strong password that you do not reuse elsewhere.",
+              "একটি শক্তিশালী পাসওয়ার্ড ব্যবহার করুন যা অন্য কোথাও ব্যবহার করেন না।"
+            )}
+            submitLabel={tx("Update Password", "পাসওয়ার্ড আপডেট")}
+            successMessage={tx("Your password was updated successfully.", "আপনার পাসওয়ার্ড সফলভাবে আপডেট হয়েছে।")}
+          />
+        </div>
       </div>
     </AppLayout>
   );
