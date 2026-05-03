@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react"
 import { Settings, ShieldCheck, Users } from "lucide-react"
+import { Search } from "lucide-react"
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 
@@ -15,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
 import {
   Select,
   SelectContent,
@@ -70,6 +72,7 @@ export default function AdminDashboardPage() {
   const [approveDialogOpen, setApproveDialogOpen] = useState(false)
   const [pendingRequest, setPendingRequest] = useState<AccessRequest | null>(null)
   const [selectedApprovalRole, setSelectedApprovalRole] = useState<AssignableRole>("Reporter")
+  const [directorySearch, setDirectorySearch] = useState("")
 
   useEffect(() => {
     if (userProfile?.role && userProfile.role !== "Admin") {
@@ -89,9 +92,14 @@ export default function AdminDashboardPage() {
     loadAdminData()
   }, [router, userProfile?.role])
 
-  const activeDirectoryUsers = useMemo(
-    () => directoryUsers.filter((user) => user.status === "active"),
-    [directoryUsers],
+  const filteredDirectoryUsers = useMemo(
+    () => directoryUsers.filter((user) => {
+      const searchLower = directorySearch.toLowerCase()
+      const nameMatch = (user.name || "").toLowerCase().includes(searchLower)
+      const emailMatch = user.email.toLowerCase().includes(searchLower)
+      return nameMatch || emailMatch
+    }),
+    [directoryUsers, directorySearch],
   )
 
   const openApprovalDialog = (request: AccessRequest) => {
@@ -320,13 +328,25 @@ export default function AdminDashboardPage() {
             <TabsContent value="user-directory">
               <Card className="border-gray-200 shadow-sm">
                 <CardHeader>
-                  <CardTitle className="text-lg text-gray-900">{tx("All Users", "সব ব্যবহারকারী")}</CardTitle>
+                  <div className="space-y-4">
+                    <CardTitle className="text-lg text-gray-900">{tx("All Users", "সব ব্যবহারকারী")}</CardTitle>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-2.5 size-4 text-gray-400" />
+                      <Input
+                        placeholder={tx("Search by name or email...", "নাম বা ইমেইল দ্বারা অনুসন্ধান...")}
+                        value={directorySearch}
+                        onChange={(e) => setDirectorySearch(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
                     <Table>
                       <TableHeader>
                         <TableRow>
+                          <TableHead className="min-w-56">{tx("Name", "নাম")}</TableHead>
                           <TableHead className="min-w-64">User Email</TableHead>
                           <TableHead className="min-w-44">{tx("Current Role", "বর্তমান রোল")}</TableHead>
                           <TableHead className="min-w-28">{tx("Status", "স্ট্যাটাস")}</TableHead>
@@ -334,8 +354,9 @@ export default function AdminDashboardPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {activeDirectoryUsers.map((user) => (
+                        {filteredDirectoryUsers.map((user) => (
                           <TableRow key={user.id}>
+                            <TableCell className="font-medium text-gray-900">{user.name || "—"}</TableCell>
                             <TableCell className="font-medium text-gray-900">{user.email}</TableCell>
                             <TableCell>
                               <div className="flex items-center gap-2">
@@ -358,16 +379,22 @@ export default function AdminDashboardPage() {
                               </div>
                             </TableCell>
                             <TableCell>
-                              <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">{tx("Active", "সক্রিয়")}</Badge>
+                              <Badge className={user.status === "active" ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-100" : "bg-red-100 text-red-800 hover:bg-red-100"}>
+                                {user.status === "active" ? tx("Active", "সক্রিয়") : tx("Revoked", "বাতিল")}
+                              </Badge>
                             </TableCell>
                             <TableCell className="text-right">
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => handleRevokeAccess(user.id)}
-                              >
-                                {tx("Revoke Access", "অ্যাক্সেস বাতিল")}
-                              </Button>
+                              {user.status === "active" ? (
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => handleRevokeAccess(user.id)}
+                                >
+                                  {tx("Revoke Access", "অ্যাক্সেস বাতিল")}
+                                </Button>
+                              ) : (
+                                <span className="text-sm text-gray-500">{tx("Access revoked", "অ্যাক্সেস বাতিল")}</span>
+                              )}
                             </TableCell>
                           </TableRow>
                         ))}

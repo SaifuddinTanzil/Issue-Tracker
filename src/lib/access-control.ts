@@ -3,6 +3,7 @@ export type ManagedUserRole = "Admin" | "Resolver" | "Reporter"
 export interface ManagedUser {
   id: string
   email: string
+  name?: string
   role: ManagedUserRole
   status: "active" | "revoked"
   assignedApps: string[]
@@ -23,6 +24,7 @@ const defaultManagedUsers: ManagedUser[] = [
   {
     id: "usr-001",
     email: "admin@company.com",
+    name: "System Administrator",
     role: "Admin",
     status: "active",
     assignedApps: [],
@@ -30,6 +32,7 @@ const defaultManagedUsers: ManagedUser[] = [
   {
     id: "usr-003",
     email: "resolver.crmsquad@vendor.com",
+    name: "CRM Squad Resolver",
     role: "Resolver",
     status: "active",
     assignedApps: ["BRAC Microfinance Portal"],
@@ -37,6 +40,7 @@ const defaultManagedUsers: ManagedUser[] = [
   {
     id: "usr-004",
     email: "reporter.uat@company.com",
+    name: "UAT Reporter",
     role: "Reporter",
     status: "active",
     assignedApps: ["BRAC Microfinance Portal"],
@@ -159,6 +163,7 @@ export async function approveAccessRequest(requestId: string, role: Exclude<Mana
       {
         id: `usr-${Date.now()}`,
         email: request.userEmail,
+        name: request.userEmail.split("@")[0],
         role,
         status: "active",
         assignedApps: [request.requestedApp],

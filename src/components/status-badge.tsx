@@ -8,7 +8,12 @@ interface StatusBadgeProps {
 }
 
 export function StatusBadge({ status, className }: StatusBadgeProps) {
-  const config = statusConfig[status]
+  const defaultConfig = { 
+    label: "Unknown", 
+    bgColor: "bg-gray-100 border-gray-300", 
+    color: "text-gray-800" 
+  }
+  const config = statusConfig[status] || defaultConfig
   return (
     <span
       className={cn(
@@ -30,7 +35,12 @@ interface SeverityBadgeProps {
 }
 
 export function SeverityBadge({ severity, showDot = false, className }: SeverityBadgeProps) {
-  const config = severityConfig[severity]
+  const defaultConfig = { 
+    label: "Unknown", 
+    color: "text-gray-800", 
+    dotColor: "bg-gray-400" 
+  }
+  const config = severityConfig[severity] || defaultConfig
   return (
     <span className={cn("inline-flex items-center gap-1.5 text-xs font-medium", config.color, className)}>
       {showDot && <span className={cn("size-2 rounded-full", config.dotColor)} />}
@@ -45,7 +55,11 @@ interface CategoryBadgeProps {
 }
 
 export function CategoryBadge({ category, className }: CategoryBadgeProps) {
-  const config = categoryConfig[category]
+  const defaultConfig = { 
+    label: "Unknown", 
+    color: "text-gray-800 bg-gray-50" 
+  }
+  const config = categoryConfig[category] || defaultConfig
   return (
     <span
       className={cn(
