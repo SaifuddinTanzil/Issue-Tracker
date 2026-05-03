@@ -4,21 +4,25 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { AppLayout } from "@/components/app-layout"
 import { getStoredNotifications, markAllNotificationsRead, type AppNotification } from "@/lib/mock-data"
+import { useAuth } from "@/components/auth-provider"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useAppPreferences } from "@/components/app-preferences-provider"
 
 export default function NotificationsPage() {
+  const { user } = useAuth()
   const [notifications, setNotifications] = useState<AppNotification[]>([])
   const { tx } = useAppPreferences()
 
   useEffect(() => {
-    getStoredNotifications().then(data => {
-      setNotifications(data)
-      // Also mark them as read in the database since they are viewing the page
-      markAllNotificationsRead()
-    })
-  }, [])
+    if (user?.id) {
+      getStoredNotifications(user.id).then(data => {
+        setNotifications(data)
+        // Also mark them as read in the database since they are viewing the page
+        markAllNotificationsRead()
+      })
+    }
+  }, [user?.id])
 
   const handleMarkAsRead = async () => {
     await markAllNotificationsRead()

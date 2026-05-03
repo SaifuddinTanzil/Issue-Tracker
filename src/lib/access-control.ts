@@ -1,4 +1,4 @@
-export type ManagedUserRole = "Admin" | "Manager" | "Resolver" | "Reporter"
+export type ManagedUserRole = "Admin" | "Resolver" | "Reporter"
 
 export interface ManagedUser {
   id: string
@@ -25,14 +25,7 @@ const defaultManagedUsers: ManagedUser[] = [
     email: "admin@company.com",
     role: "Admin",
     status: "active",
-    assignedApps: ["BRAC Microfinance Portal", "HR Management System", "Inventory Tracker", "Customer Relations Portal"],
-  },
-  {
-    id: "usr-002",
-    email: "manager.ops@company.com",
-    role: "Manager",
-    status: "active",
-    assignedApps: ["BRAC Microfinance Portal", "HR Management System", "Inventory Tracker", "Customer Relations Portal"],
+    assignedApps: [],
   },
   {
     id: "usr-003",
@@ -230,15 +223,17 @@ export async function getAllowedAppsForUser(email?: string | null, fallbackRole?
   const role = user?.role ?? (fallbackRole as ManagedUserRole | undefined)
   if (!role) return []
 
-  if (role === "Admin" || role === "Manager") {
+  // Admin sees all apps
+  if (role === "Admin") {
     return ["*"]
   }
 
+  // Resolver and Reporter see only their assigned apps
   return user?.assignedApps ?? []
 }
 
 export function canUpdateIssue(role?: string | null): boolean {
-  return role === "Admin" || role === "Manager" || role === "Resolver"
+  return role === "Admin" || role === "Resolver"
 }
 
 export function canDeleteIssue(role?: string | null): boolean {

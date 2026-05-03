@@ -24,8 +24,8 @@ import { cn } from "@/lib/utils"
 import { getAllowedAppsForUser } from "@/lib/access-control"
 
 const environments = [
-  { value: "uat", label: "UAT" },
-  { value: "staging", label: "Staging" },
+  { value: "Ho-uat", label: "Ho-uat" },
+  { value: "field-uat", label: "Field-uat" },
   { value: "production", label: "Production" },
 ]
 
@@ -44,6 +44,7 @@ export default function SubmitIssuePage() {
   })
   const [dragActive, setDragActive] = useState(false)
   const [files, setFiles] = useState<File[]>([])
+  const [externalUrl, setExternalUrl] = useState("")
   const [submitted, setSubmitted] = useState(false)
   const { user, userProfile } = useAuth()
   const [allowedApps, setAllowedApps] = useState<string[]>([])
@@ -238,7 +239,9 @@ export default function SubmitIssuePage() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="module">Module / Page</Label>
+                  <Label htmlFor="module">
+                    Module / Page <span className="text-destructive">*</span>
+                  </Label>
                   <Input
                     id="module"
                     placeholder="e.g., Dashboard, Login Page, Reports"
@@ -357,6 +360,31 @@ export default function SubmitIssuePage() {
                 {/* File Upload Area */}
                 <div className="space-y-2">
                   <Label>Attachments</Label>
+                  
+                  {/* External URL Input */}
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Or paste Google Drive link / Image URL"
+                        value={externalUrl}
+                        onChange={(e) => setExternalUrl(e.target.value)}
+                        className="flex-1"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          if (externalUrl.trim()) {
+                            setFiles([...files, new File([externalUrl], externalUrl, { type: 'text/uri-list' })])
+                            setExternalUrl("")
+                          }
+                        }}
+                      >
+                        Add Link
+                      </Button>
+                    </div>
+                  </div>
+
                   <div
                     className={cn(
                       "relative rounded-lg border-2 border-dashed p-6 transition-colors",
@@ -443,6 +471,7 @@ export default function SubmitIssuePage() {
                   disabled={
                     !formData.application ||
                     !formData.environment ||
+                    !formData.module ||
                     !formData.title ||
                     !formData.category ||
                     (isUIUXCategory && !hasFiles)

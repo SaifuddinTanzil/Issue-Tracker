@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -14,6 +14,9 @@ import {
   Search,
   RotateCcw,
 } from "lucide-react";
+import { useAuth } from "@/components/auth-provider";
+import { getManagedUserByEmail } from "@/lib/access-control";
+import { getIssuesForUser, type Issue } from "@/lib/mock-data";
 
 // ──────────────────────────────────────────────────────────
 // Types
@@ -201,15 +204,63 @@ const INITIAL_TICKETS: KanbanTicket[] = [
 // ──────────────────────────────────────────────────────────
 
 export default function ManagerKanbanDashboard() {
-  const [tickets, setTickets] = useState<KanbanTicket[]>(INITIAL_TICKETS);
+  const { user, userProfile } = useAuth();
+  const [tickets, setTickets] = useState<KanbanTicket[]>([]);
   const [filterApp, setFilterApp] = useState<string>("all");
   const [filterSeverity, setFilterSeverity] = useState<string>("all");
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load tickets based on user role and assigned apps
+  useEffect(() => {
+    const loadTickets = async () => {
+      setIsLoading(true);
+      try {
+        const managedUser = await getManagedUserByEmail(user?.email);
+        const role = (managedUser?.role || userProfile?.role || "Reporter") as "Admin" | "Resolver" | "Reporter";
+        const assignedApps = managedUser?.assignedApps || [];
+
+        // Get issues filtered by user role and assigned apps
+        const issues = await getIssuesForUser(role, assignedApps);
+
+        // Convert Issue objects to KanbanTicket format
+        const kbTickets: KanbanTicket[] = issues.map((issue: Issue) => ({
+          id: issue.id,
+          title: issue.title,
+          applicationName: issue.application,
+          category: issue.category as TicketCategory,
+          severity: issue.severity as TicketSeverity,
+          status: getStatusForKanban(issue.status),
+          reporterName: issue.reporter,
+        }));
+
+        setTickets(kbTickets);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (user?.email) {
+      loadTickets();
+    }
+  }, [user?.email, userProfile?.role]);
+
+  // Helper to map Issue status to KanbanTicket status
+  function getStatusForKanban(issueStatus: string): TicketStatus {
+    const statusMap: Record<string, TicketStatus> = {
+      "open": "Open",
+      "triaged": "Triaged",
+      "in-progress": "In Progress",
+      "ready-for-retest": "Ready for Retest",
+      "closed": "Closed",
+    };
+    return statusMap[issueStatus] || "Open";
+  }
 
   // Unique application names for filter dropdown
   const applicationOptions = useMemo(() => {
-    const names = [...new Set(INITIAL_TICKETS.map((t) => t.applicationName))];
+    const names = [...new Set(tickets.map((t) => t.applicationName))];
     return names.sort();
-  }, []);
+  }, [tickets]);
 
   // Filtered tickets
   const filteredTickets = useMemo(() => {
@@ -250,6 +301,16 @@ export default function ManagerKanbanDashboard() {
   }, [filteredTickets]);
 
   const isFilterActive = filterApp !== "all" || filterSeverity !== "all";
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-surface-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-muted-foreground">Loading Kanban board...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-surface-50">

@@ -1,9 +1,9 @@
 import { supabase } from "./supabase"
 
-export type IssueStatus = "open" | "triaged" | "in-progress" | "ready-for-retest" | "closed" | "needs-info" | "rejected"
+export type IssueStatus = "open" | "in-progress" | "ready-for-retest" | "closed"
 export type Severity = "low" | "medium" | "high"
-export type Category = "bug" | "ui-ux" | "performance" | "suggestion"
-export type Environment = "uat" | "staging" | "production"
+export type Category = "bug" | "ui-ux" | "suggestion"
+export type Environment = "Ho-uat" | "field-uat" | "production"
 
 export interface Issue {
   id: string
@@ -76,7 +76,7 @@ export const issues: Issue[] = [
     status: "open",
     severity: "high",
     category: "ui-ux",
-    environment: "uat",
+    environment: "Ho-uat",
     assignedTo: "Sarah Ahmed",
     reporter: "Rafiq Hassan",
     createdAt: "2024-01-15",
@@ -104,8 +104,8 @@ export const issues: Issue[] = [
     application: "HR Management System",
     status: "in-progress",
     severity: "medium",
-    category: "performance",
-    environment: "uat",
+    category: "bug",
+    environment: "Ho-uat",
     assignedTo: "Nadia Khan",
     reporter: "Imran Ali",
     createdAt: "2024-01-14",
@@ -127,7 +127,7 @@ export const issues: Issue[] = [
     status: "ready-for-retest",
     severity: "high",
     category: "bug",
-    environment: "staging",
+    environment: "field-uat",
     assignedTo: "Rafiq Hassan",
     reporter: "Sarah Ahmed",
     createdAt: "2024-01-13",
@@ -149,7 +149,7 @@ export const issues: Issue[] = [
     status: "open",
     severity: "low",
     category: "suggestion",
-    environment: "uat",
+    environment: "Ho-uat",
     assignedTo: "Imran Ali",
     reporter: "Nadia Khan",
     createdAt: "2024-01-12",
@@ -166,10 +166,10 @@ export const issues: Issue[] = [
     id: "UAT-005",
     title: "Search results pagination breaks after filter change",
     application: "BRAC Microfinance Portal",
-    status: "triaged",
+    status: "in-progress",
     severity: "medium",
     category: "bug",
-    environment: "uat",
+    environment: "Ho-uat",
     assignedTo: "Sarah Ahmed",
     reporter: "Fatima Begum",
     createdAt: "2024-01-11",
@@ -213,7 +213,7 @@ export const issues: Issue[] = [
     status: "in-progress",
     severity: "high",
     category: "bug",
-    environment: "uat",
+    environment: "Ho-uat",
     assignedTo: "Imran Ali",
     reporter: "Sarah Ahmed",
     createdAt: "2024-01-09",
@@ -235,7 +235,7 @@ export const issues: Issue[] = [
     status: "open",
     severity: "high",
     category: "bug",
-    environment: "staging",
+    environment: "field-uat",
     assignedTo: "Fatima Begum",
     reporter: "Imran Ali",
     createdAt: "2024-01-08",
@@ -321,11 +321,8 @@ export const mockNotifications: AppNotification[] = [
 
 export const statusConfig: Record<IssueStatus, { label: string; color: string; bgColor: string }> = {
   open: { label: "Open", color: "text-blue-700", bgColor: "bg-blue-50 border-blue-200" },
-  triaged: { label: "Triaged", color: "text-amber-700", bgColor: "bg-amber-50 border-amber-200" },
   "in-progress": { label: "In Progress", color: "text-indigo-700", bgColor: "bg-indigo-50 border-indigo-200" },
   "ready-for-retest": { label: "Ready for Retest", color: "text-emerald-700", bgColor: "bg-emerald-50 border-emerald-200" },
-  "needs-info": { label: "Needs Info", color: "text-purple-700", bgColor: "bg-purple-50 border-purple-200" },
-  rejected: { label: "Rejected", color: "text-red-700", bgColor: "bg-red-50 border-red-200" },
   closed: { label: "Closed", color: "text-gray-700", bgColor: "bg-gray-100 border-gray-300" },
 }
 
@@ -338,7 +335,6 @@ export const severityConfig: Record<Severity, { label: string; color: string; do
 export const categoryConfig: Record<Category, { label: string; color: string }> = {
   bug: { label: "Bug", color: "text-red-700 bg-red-50" },
   "ui-ux": { label: "UI/UX", color: "text-blue-700 bg-blue-50" },
-  performance: { label: "Performance", color: "text-amber-700 bg-amber-50" },
   suggestion: { label: "Suggestion", color: "text-emerald-700 bg-emerald-50" },
 }
 
@@ -551,19 +547,34 @@ export async function addStoredComment(comment: IssueComment): Promise<void> {
   writeToLocalStorage(STORAGE_KEYS.comments, [...localComments, comment])
 }
 
-export async function getStoredNotifications(): Promise<AppNotification[]> {
+export async function getStoredNotifications(userId?: string): Promise<AppNotification[]> {
   ensureMockDataSeeded()
 
   if (!hasSupabaseConfig) {
+    // Mock data: filter by userId if provided
+    if (userId) {
+      return mockNotifications.filter(n => n.userId === userId)
+    }
     return readFromLocalStorage<AppNotification[]>(STORAGE_KEYS.notifications, mockNotifications)
   }
 
-  const { data, error } = await supabase
+  // Build Supabase query with proper user filtering
+  let query = supabase
     .from('notifications')
     .select('*')
-    .order('createdAt', { ascending: false });
+
+  // If userId is provided, filter to that user only
+  if (userId) {
+    query = query.eq('userId', userId)
+  }
+
+  const { data, error } = await query.order('createdAt', { ascending: false });
     
   if (error) {
+    // Fallback to localStorage
+    if (userId) {
+      return mockNotifications.filter(n => n.userId === userId)
+    }
     return readFromLocalStorage<AppNotification[]>(STORAGE_KEYS.notifications, mockNotifications)
   }
 
@@ -573,6 +584,9 @@ export async function getStoredNotifications(): Promise<AppNotification[]> {
     return resolvedNotifications
   }
 
+  if (userId) {
+    return mockNotifications.filter(n => n.userId === userId)
+  }
   return readFromLocalStorage<AppNotification[]>(STORAGE_KEYS.notifications, mockNotifications)
 }
 
@@ -605,4 +619,24 @@ export async function addStoredNotification(notification: AppNotification): Prom
 
   const notifications = readFromLocalStorage<AppNotification[]>(STORAGE_KEYS.notifications, mockNotifications)
   writeToLocalStorage(STORAGE_KEYS.notifications, [notification, ...notifications])
+}
+
+/**
+ * Get issues filtered by user role and assigned apps.
+ * - Admin role: returns all issues
+ * - Reporter/Resolver: returns only issues from their assigned apps
+ */
+export async function getIssuesForUser(
+  userRole: "Admin" | "Resolver" | "Reporter",
+  assignedApps: string[]
+): Promise<Issue[]> {
+  const allIssues = await getStoredIssues()
+
+  // Admin sees all issues
+  if (userRole === "Admin") {
+    return allIssues
+  }
+
+  // Reporter and Resolver see only issues from their assigned apps
+  return allIssues.filter((issue) => assignedApps.includes(issue.application))
 }

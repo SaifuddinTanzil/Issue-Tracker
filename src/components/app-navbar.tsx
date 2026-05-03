@@ -41,8 +41,10 @@ export function AppNavbar() {
   const [notifications, setNotifications] = useState<AppNotification[]>([])
 
   useEffect(() => {
-    getStoredNotifications().then(setNotifications)
-  }, [])
+    if (user?.id) {
+      getStoredNotifications(user.id).then(setNotifications)
+    }
+  }, [user?.id])
 
   const unreadCount = notifications.filter((n) => !n.isRead).length
   const recentNotifications = notifications.slice(0, 3)

@@ -136,9 +136,6 @@ export default function IssuesPage() {
               )}
             </p>
           </div>
-          <Link href="/submit">
-            <Button>{tx("Submit Issue", "ইস্যু জমা দিন")}</Button>
-          </Link>
         </div>
 
         {/* Search Bar */}

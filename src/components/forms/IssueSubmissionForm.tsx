@@ -220,8 +220,8 @@ export default function IssueSubmissionForm() {
     const sev = SEVERITIES.find(s => s.id === data.severityId);
 
     const envMap: Record<string, MockEnv> = {
-      "UAT": "uat",
-      "Staging": "staging",
+      "UAT": "Ho-uat",
+      "Staging": "field-uat",
       "Prod": "production"
     };
 

@@ -47,15 +47,14 @@ import {
 } from "@/lib/access-control"
 import { addStoredNotification, type AppNotification } from "@/lib/mock-data"
 
-type UserRole = Extract<ManagedUserRole, "Admin" | "Manager" | "Resolver" | "Reporter">
-type AssignableRole = Extract<ManagedUserRole, "Manager" | "Resolver" | "Reporter">
+type UserRole = Extract<ManagedUserRole, "Admin" | "Resolver" | "Reporter">
+type AssignableRole = Extract<ManagedUserRole, "Resolver" | "Reporter">
 
-const ASSIGNABLE_ROLE_OPTIONS: AssignableRole[] = ["Manager", "Resolver", "Reporter"]
-const DIRECTORY_ROLE_OPTIONS: UserRole[] = ["Admin", "Manager", "Resolver", "Reporter"]
+const ASSIGNABLE_ROLE_OPTIONS: AssignableRole[] = ["Resolver", "Reporter"]
+const DIRECTORY_ROLE_OPTIONS: UserRole[] = ["Admin", "Resolver", "Reporter"]
 
 function getRoleBadgeClass(role: UserRole): string {
   if (role === "Admin") return "bg-violet-100 text-violet-800 hover:bg-violet-100"
-  if (role === "Manager") return "bg-sky-100 text-sky-800 hover:bg-sky-100"
   if (role === "Resolver") return "bg-amber-100 text-amber-800 hover:bg-amber-100"
   return "bg-gray-100 text-gray-800 hover:bg-gray-100"
 }
