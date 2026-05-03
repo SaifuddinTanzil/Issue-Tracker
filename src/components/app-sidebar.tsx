@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, List, PlusCircle, User, ShieldCheck } from "lucide-react"
+import { LayoutDashboard, List, PlusCircle, User, ShieldCheck, BriefcaseBusiness } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/components/auth-provider"
 import { useAppPreferences } from "@/components/app-preferences-provider"
@@ -24,6 +24,9 @@ export function AppSidebar() {
     ...(userProfile?.role === "Admin"
       ? [{ name: "Admin", href: "/dashboard/admin", icon: ShieldCheck }]
       : []),
+    ...(userProfile?.role === "Vendor"
+      ? [{ name: "Vendor Dashboard", href: "/vendor/dashboard", icon: BriefcaseBusiness }]
+      : []),
   ]
 
   const resolveLabel = (name: string) => {
@@ -32,6 +35,7 @@ export function AppSidebar() {
     if (name === "All Issues") return tx("All Issues", "সব ইস্যু")
     if (name === "Submit Issue") return tx("Submit Issue", "ইস্যু জমা দিন")
     if (name === "Admin") return tx("Admin", "অ্যাডমিন")
+    if (name === "Vendor Dashboard") return tx("Vendor Dashboard", "ভেন্ডর ড্যাশবোর্ড")
     return name
   }
 

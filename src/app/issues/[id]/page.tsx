@@ -3,14 +3,12 @@
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Send, Trash2, Calendar, User, Monitor } from "lucide-react"
+import { ArrowLeft, Trash2, Calendar, User, Monitor } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/components/auth-provider"
-import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import {
   Select,
@@ -46,10 +44,11 @@ import {
   type Severity,
   type Category,
 } from "@/lib/mock-data"
-import { getStoredIssues, getStoredComments, addStoredComment, type Issue, type IssueComment } from "@/lib/mock-data"
+import { getStoredIssues, type Issue } from "@/lib/mock-data"
 import { useToast } from "@/hooks/use-toast"
 import { canDeleteIssue, canUpdateIssue, getAllowedAppsForUser, getManagedUserByEmail } from "@/lib/access-control"
 import { useAppPreferences } from "@/components/app-preferences-provider"
+import { TicketComments } from "@/components/TicketComments"
 
 export default function IssueDetailPage() {
   const params = useParams()
@@ -60,7 +59,6 @@ export default function IssueDetailPage() {
   const { tx } = useAppPreferences()
 
   const [allIssues, setAllIssues] = useState<Issue[]>([])
-  const [localComments, setLocalComments] = useState<IssueComment[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [allowedApps, setAllowedApps] = useState<string[]>([])
   const [resolvedRole, setResolvedRole] = useState<string>("Reporter")
@@ -69,17 +67,12 @@ export default function IssueDetailPage() {
   const [severity, setSeverity] = useState<Severity>("low")
   const [category, setCategory] = useState<Category>("bug")
   const [assignedTo, setAssignedTo] = useState("Unassigned")
-  const [newComment, setNewComment] = useState("")
   const [isSavingUpdates, setIsSavingUpdates] = useState(false)
 
   useEffect(() => {
-    Promise.all([
-      getStoredIssues(),
-      getStoredComments(issueId)
-    ]).then(([issuesData, commentsData]) => {
+    getStoredIssues().then((issuesData) => {
       setAllIssues(issuesData)
-      setLocalComments(commentsData)
-      
+
       const foundIssue = issuesData.find((i) => i.id === issueId) || issuesData[0]
       if (foundIssue) {
         setStatus(foundIssue.status)
@@ -170,35 +163,6 @@ export default function IssueDetailPage() {
     }
     addStoredNotification(notification)
     router.push("/issues")
-  }
-
-  const handleCommentSubmit = async () => {
-    if (newComment.trim()) {
-      const newCommentObj = {
-        id: `comment-${Date.now()}`,
-        issueId: issue.id,
-        user: { 
-          id: user?.id || 'temp', 
-          name: currentUserName, 
-          email: user?.email || '', 
-          avatar: userProfile?.avatar || currentUserName.substring(0, 2).toUpperCase() 
-        },
-        content: newComment.trim(),
-        createdAt: new Date().toISOString(),
-      }
-      setLocalComments([...localComments, newCommentObj])
-      setNewComment("")
-      await addStoredComment(newCommentObj)
-      await addStoredNotification({
-        id: `notif-${Date.now()}`,
-        userId: issue.reporter,
-        title: "New Comment",
-        message: `${currentUserName} commented on ${issue.id}.`,
-        isRead: false,
-        createdAt: new Date().toISOString(),
-        linkHref: `/issues/${issue.id}`,
-      })
-    }
   }
 
   const handleSaveTicketUpdates = async () => {
@@ -410,74 +374,7 @@ export default function IssueDetailPage() {
             )}
 
             {/* Activity / Comments */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-semibold">Comments</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <ScrollArea className="h-[300px] pr-4">
-                  <div className="space-y-4">
-                    {localComments.map((comment) => (
-                      <div key={comment.id} className="flex gap-3">
-                        <Avatar className="size-8 shrink-0">
-                          <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                            {comment.user.avatar}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 space-y-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium">{comment.user.name}</span>
-                            <span className="text-xs text-muted-foreground">
-                              {new Date(comment.createdAt).toLocaleDateString("en-US", {
-                                month: "short",
-                                day: "numeric",
-                                hour: "numeric",
-                                minute: "2-digit",
-                              })}
-                            </span>
-                          </div>
-                          <p className="text-sm text-muted-foreground leading-relaxed">
-                            {comment.content}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                    {localComments.length === 0 && (
-                      <p className="text-center text-sm text-muted-foreground py-8">
-                        No comments yet. Be the first to comment.
-                      </p>
-                    )}
-                  </div>
-                </ScrollArea>
-
-                {/* Comment Input */}
-                <div className="flex gap-3 border-t pt-4">
-                  <Avatar className="size-8 shrink-0">
-                    <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                      SA
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 space-y-2">
-                    <Textarea
-                      placeholder="Write a comment..."
-                      value={newComment}
-                      onChange={(e) => setNewComment(e.target.value)}
-                      className="min-h-20 resize-none"
-                    />
-                    <div className="flex justify-end">
-                      <Button
-                        size="sm"
-                        onClick={handleCommentSubmit}
-                        disabled={!newComment.trim()}
-                      >
-                        <Send className="mr-1.5 size-3.5" />
-                        Comment
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <TicketComments issueId={issueId} />
           </div>
 
           {/* Right Column - Sidebar */}
