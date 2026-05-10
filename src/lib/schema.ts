@@ -20,6 +20,11 @@ export const issueFormSchema = z
       required_error: "Please select an environment.",
     }),
 
+    module: z
+      .string({ required_error: "Please enter a module or page name." })
+      .min(1, "Module or page name is required.")
+      .max(100, "Module or page name must not exceed 100 characters."),
+
     title: z
       .string()
       .min(5, "Title must be at least 5 characters.")
@@ -70,6 +75,22 @@ export const issueFormSchema = z
           message:
             "Invalid file type. Accepted: PNG, JPEG, GIF, WebP, PDF, MP4, WebM.",
         }
+      ),
+
+    externalLink: z
+      .string()
+      .optional()
+      .refine(
+        (url) => {
+          if (!url) return true;
+          try {
+            new URL(url);
+            return true;
+          } catch {
+            return false;
+          }
+        },
+        { message: "Please enter a valid URL (e.g., https://drive.google.com/...)." }
       ),
 
     cannotProvideScreenshot: z.boolean(),

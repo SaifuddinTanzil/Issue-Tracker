@@ -108,7 +108,7 @@ export default function SubmitIssuePage() {
     const existingIssues = await getStoredIssues()
     const app = applications.find(a => a.id === formData.application)
 
-    const newIssue: Issue = {
+    const newIssue: Issue & { vendorId?: string } = {
       id: `UAT-${String(existingIssues.length + 1).padStart(3, '0')}`,
       title: formData.title,
       application: app?.name || "Unknown App",
@@ -137,16 +137,21 @@ export default function SubmitIssuePage() {
     try {
       const supabase = createBrowserClient()
       if (supabase?.from) {
-        const { data: appRow } = await supabase.from('apps').select('vendor_id').eq('id', formData.application).maybeSingle()
-        (newIssue as any).vendorId = (appRow as any)?.vendor_id ?? undefined
+        const { data: appRow } = await supabase
+          .from('apps')
+          .select('vendor_id')
+          .eq('id', formData.application)
+          .maybeSingle()
+
+        newIssue.vendorId = appRow?.vendor_id ?? undefined
       } else {
         const app = applications.find(a => a.id === formData.application)
-        (newIssue as any).vendorId = app?.code
+        newIssue.vendorId = app?.shortName
       }
     } catch (err) {
       console.warn('Failed to resolve vendor for application', err)
       const app = applications.find(a => a.id === formData.application)
-      (newIssue as any).vendorId = app?.code
+      newIssue.vendorId = app?.shortName
     }
 
     await addStoredIssue(newIssue)

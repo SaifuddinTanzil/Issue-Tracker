@@ -11,17 +11,16 @@ export const APPLICATIONS: Application[] = [
 
 // ── Environments ──
 export const ENVIRONMENTS: { value: Environment; label: string }[] = [
-  { value: "UAT", label: "UAT" },
-  { value: "Staging", label: "Staging" },
-  { value: "Prod", label: "Production" },
+  { value: "UAT", label: "Ho-uat" },
+  { value: "Staging", label: "field-uat" },
+  { value: "Prod", label: "production" },
 ];
 
 // ── Issue Categories ──
 export const CATEGORIES: IssueCategory[] = [
   { id: 1, label: "Bug", slug: "bug" },
   { id: 2, label: "UI/UX", slug: "ui-ux" },
-  { id: 3, label: "Performance", slug: "performance" },
-  { id: 4, label: "Suggestion", slug: "suggestion" },
+  { id: 3, label: "Suggestion", slug: "suggestion" },
 ];
 
 // ── Severity Levels ──

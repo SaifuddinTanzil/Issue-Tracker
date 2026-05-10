@@ -163,6 +163,7 @@ export default function IssueSubmissionForm() {
     defaultValues: {
       applicationId: undefined,
       environment: undefined,
+      module: "",
       title: "",
       categoryId: undefined,
       severityId: undefined,
@@ -170,6 +171,7 @@ export default function IssueSubmissionForm() {
       actualResult: "",
       reproductionSteps: "",
       attachment: null,
+      externalLink: "",
       cannotProvideScreenshot: false,
     },
     mode: "onTouched",
@@ -258,11 +260,11 @@ export default function IssueSubmissionForm() {
       assignedTo: "Unassigned",
       reporter: "Sarah Ahmed",
       createdAt: new Date().toISOString(),
-      module: "General",
+      module: data.module,
       expectedResult: data.expectedResult,
       actualResult: data.actualResult,
       reproductionSteps: data.reproductionSteps.split('\n').filter(s => s.trim()),
-      attachments: data.attachment ? ["/placeholder.svg"] : [],
+      attachments: data.attachment ? ["/placeholder.svg"] : (data.externalLink ? [data.externalLink] : []),
       systemMetadata: metadata
     };
 
@@ -381,6 +383,24 @@ export default function IssueSubmissionForm() {
               </div>
             </FormFieldWrapper>
           </div>
+
+          {/* Module / Page */}
+          <FormFieldWrapper
+            id="module"
+            label="Module / Page"
+            required
+            error={errors.module?.message}
+            hint="Enter the specific module or page where the issue was found (e.g., Dashboard, Login, Report Generator)."
+          >
+            <input
+              id="module"
+              type="text"
+              placeholder="e.g. Dashboard, Login, Report Generator"
+              {...register("module")}
+              className={cls("module")}
+              maxLength={100}
+            />
+          </FormFieldWrapper>
         </fieldset>
 
         <hr className="border-surface-200" />
@@ -552,6 +572,22 @@ export default function IssueSubmissionForm() {
               </span>
             </div>
           )}
+
+          {/* External Link */}
+          <FormFieldWrapper
+            id="externalLink"
+            label="External Link"
+            error={errors.externalLink?.message}
+            hint="Paste a URL to a Google Drive image, screenshot, or external resource (optional)."
+          >
+            <input
+              id="externalLink"
+              type="url"
+              placeholder="https://drive.google.com/file/... or https://example.com/image.png"
+              {...register("externalLink")}
+              className={cls("externalLink")}
+            />
+          </FormFieldWrapper>
 
           {/* Drop Zone */}
           <div

@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react"
 import Link from "next/link"
-import { Search, X } from "lucide-react"
+import { Search, X, Download } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -38,6 +38,7 @@ import {
   type Issue,
 } from "@/lib/mock-data"
 import { getAllowedAppsForUser } from "@/lib/access-control"
+import { exportIssuesToCSV } from "@/lib/export-utils"
 
 const environments = [
   { value: "uat", label: "UAT" },
@@ -262,6 +263,19 @@ export default function IssuesPage() {
               Clear filters
             </Button>
           )}
+
+          <div className="ml-auto">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => exportIssuesToCSV(filteredIssues, `issues-export-${new Date().toISOString().split('T')[0]}.csv`)}
+              disabled={filteredIssues.length === 0}
+              className="gap-2"
+            >
+              <Download className="size-4" />
+              Export to CSV
+            </Button>
+          </div>
         </div>
 
         {/* Issues Table */}

@@ -47,7 +47,7 @@ using (
     select 1
     from public.users u
     where u.id::text = auth.uid()::text 
-      and lower(coalesce(u.role::text, '')) in ('admin', 'manager', 'resolver', 'reporter')
+      and lower(coalesce(u.role::text, '')) = 'admin'
   )
 );
 

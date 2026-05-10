@@ -127,7 +127,12 @@ export default function IssueDetailPage() {
   const currentUserRole: string = resolvedRole || userProfile?.role || "Reporter"
   const currentUserName = userProfile?.name || user?.email?.split('@')[0] || "Unknown"
   const isReporter = issue.reporter === currentUserName || issue.reporter === user?.email || issue.reporter === user?.id
-  const isAdminOrManager = currentUserRole === "Admin" || currentUserRole === "Manager"
+  const isAdmin = currentUserRole === "Admin"
+  const isVendorLikeResolver = ["resolver", "vendor"].includes(currentUserRole.toLowerCase())
+  const visibleStatusOptions = Object.entries(statusConfig).filter(
+    ([key]) => !isVendorLikeResolver || key !== "closed",
+  )
+  const showClosedStatusReadOnly = isVendorLikeResolver && status === "closed"
 
   const isStatusOptionDisabled = (optionStatus: string) => {
     // Only Reporter or Admin can close tickets
@@ -389,24 +394,30 @@ export default function IssueDetailPage() {
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Status
                   </label>
-                  <Select value={status} onValueChange={(v) => setStatus(v as IssueStatus)}>
-                    <SelectTrigger className="w-full" disabled={!canEditIssue}>
-                      <SelectValue>
-                        <StatusBadge status={status} />
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(statusConfig).map(([key, config]) => (
-                        <SelectItem 
-                          key={key} 
-                          value={key}
-                          disabled={isStatusOptionDisabled(key)}
-                        >
-                          <StatusBadge status={key as IssueStatus} />
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {showClosedStatusReadOnly ? (
+                    <div className="flex h-10 items-center rounded-md border bg-muted/40 px-3">
+                      <StatusBadge status={status} />
+                    </div>
+                  ) : (
+                    <Select value={status} onValueChange={(v) => setStatus(v as IssueStatus)}>
+                      <SelectTrigger className="w-full" disabled={!canEditIssue}>
+                        <SelectValue>
+                          <StatusBadge status={status} />
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {visibleStatusOptions.map(([key]) => (
+                          <SelectItem 
+                            key={key} 
+                            value={key}
+                            disabled={isStatusOptionDisabled(key)}
+                          >
+                            <StatusBadge status={key as IssueStatus} />
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
 
                 {/* Severity */}

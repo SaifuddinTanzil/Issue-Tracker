@@ -24,14 +24,14 @@ import { getIssuesForUser, type Issue } from "@/lib/mock-data";
 
 type TicketStatus =
   | "Open"
-  | "Triaged"
   | "In Progress"
   | "Ready for Retest"
+  | "Blocked"
   | "Closed";
 
 type TicketSeverity = "Low" | "Medium" | "High";
 
-type TicketCategory = "Bug" | "UI/UX" | "Performance" | "Suggestion";
+type TicketCategory = "Bug" | "UI/UX" | "Suggestion";
 
 interface KanbanTicket {
   id: string;
@@ -49,9 +49,9 @@ interface KanbanTicket {
 
 const KANBAN_COLUMNS: TicketStatus[] = [
   "Open",
-  "Triaged",
   "In Progress",
   "Ready for Retest",
+  "Blocked",
   "Closed",
 ];
 
@@ -65,12 +65,6 @@ const COLUMN_META: Record<
     bgClass: "bg-blue-50 border-blue-200",
     dotColor: "bg-blue-500",
   },
-  Triaged: {
-    icon: AlertTriangle,
-    colorClass: "text-amber-600",
-    bgClass: "bg-amber-50 border-amber-200",
-    dotColor: "bg-amber-500",
-  },
   "In Progress": {
     icon: Clock,
     colorClass: "text-violet-600",
@@ -82,6 +76,12 @@ const COLUMN_META: Record<
     colorClass: "text-teal-600",
     bgClass: "bg-teal-50 border-teal-200",
     dotColor: "bg-teal-500",
+  },
+  Blocked: {
+    icon: AlertTriangle,
+    colorClass: "text-amber-600",
+    bgClass: "bg-amber-50 border-amber-200",
+    dotColor: "bg-amber-500",
   },
   Closed: {
     icon: CheckCircle2,
@@ -147,9 +147,9 @@ const INITIAL_TICKETS: KanbanTicket[] = [
     id: "UAT-1003",
     title: "Payroll export takes over 45 seconds for 500+ records",
     applicationName: "HCM",
-    category: "Performance",
+    category: "Suggestion",
     severity: "High",
-    status: "Triaged",
+    status: "In Progress",
     reporterName: "Anika Patel",
   },
   {
@@ -158,7 +158,7 @@ const INITIAL_TICKETS: KanbanTicket[] = [
     applicationName: "SCP",
     category: "Suggestion",
     severity: "Low",
-    status: "Triaged",
+    status: "Blocked",
     reporterName: "Marcus Liu",
   },
   {
@@ -248,8 +248,8 @@ export default function ManagerKanbanDashboard() {
   function getStatusForKanban(issueStatus: string): TicketStatus {
     const statusMap: Record<string, TicketStatus> = {
       "open": "Open",
-      "triaged": "Triaged",
       "in-progress": "In Progress",
+      "blocked": "Blocked",
       "ready-for-retest": "Ready for Retest",
       "closed": "Closed",
     };
@@ -291,9 +291,9 @@ export default function ManagerKanbanDashboard() {
   const columnCounts = useMemo(() => {
     const counts: Record<TicketStatus, number> = {
       Open: 0,
-      Triaged: 0,
       "In Progress": 0,
       "Ready for Retest": 0,
+      Blocked: 0,
       Closed: 0,
     };
     filteredTickets.forEach((t) => counts[t.status]++);

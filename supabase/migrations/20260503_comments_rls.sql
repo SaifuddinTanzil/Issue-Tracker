@@ -34,7 +34,7 @@ using (
   exists (
     select 1 from public.users u
     where u.id::text = auth.uid()::text
-      and lower(coalesce(u.role::text, '')) in ('admin', 'manager', 'resolver', 'reporter')
+      and lower(coalesce(u.role::text, '')) in ('admin', 'resolver', 'reporter')
   )
 );
 
@@ -46,7 +46,7 @@ with check (
   exists (
     select 1 from public.users u
     where u.id::text = auth.uid()::text
-      and lower(coalesce(u.role::text, '')) in ('admin', 'manager', 'resolver', 'reporter')
+      and lower(coalesce(u.role::text, '')) in ('admin', 'resolver', 'reporter')
   )
   and user_id::text = auth.uid()::text
 );
@@ -59,7 +59,7 @@ using (
   exists (
     select 1 from public.users u
     where u.id::text = auth.uid()::text
-      and lower(coalesce(u.role::text, '')) in ('admin', 'manager', 'resolver', 'reporter')
+      and lower(coalesce(u.role::text, '')) in ('admin', 'resolver', 'reporter')
   )
 );
 
