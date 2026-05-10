@@ -346,6 +346,20 @@ export async function getAllowedAppsForUser(email?: string | null, fallbackRole?
   return Array.isArray(user?.assignedApps) ? user.assignedApps : []
 }
 
+/**
+ * Update a user's vendor_id assignment in Supabase
+ */
+export async function updateManagedUserVendor(userId: string, vendorId: string | null): Promise<void> {
+  const { error } = await supabase
+    .from('users')
+    .update({ vendor_id: vendorId })
+    .eq('id', userId)
+
+  if (error) {
+    console.error('Failed to update user vendor:', error)
+  }
+}
+
 export function canUpdateIssue(role?: string | null): boolean {
   return role === "Admin" || role === "Resolver"
 }

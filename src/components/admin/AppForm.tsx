@@ -96,7 +96,7 @@ export function AppForm({ open, onOpenChange, mode, vendors, app, onSaved }: App
 
       await onSaved(savedApp)
       onOpenChange(false)
-      form.reset({ name: "", short_name: "", vendor_id: "" })
+      form.reset({ name: "", short_name: "", vendor_id: "__none__" })
 
       toast({
         title: mode === "create" ? "App created" : "App updated",

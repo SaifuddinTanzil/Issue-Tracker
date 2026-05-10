@@ -140,10 +140,15 @@ export async function getAppsPageData(): Promise<AppsPageData> {
 export async function createApp(input: AppUpsertInput): Promise<AppRecord> {
   const supabase = await requireAdminClient()
 
+  const normalizedVendorId =
+    input.vendor_id === "__none__" || !input.vendor_id
+      ? null
+      : input.vendor_id.trim() || null
+
   const payload = {
     name: input.name.trim(),
     short_name: normalizeText(input.short_name),
-    vendor_id: input.vendor_id?.trim() || null,
+    vendor_id: normalizedVendorId,
   }
 
   const { data, error } = await supabase
@@ -174,10 +179,15 @@ export async function createApp(input: AppUpsertInput): Promise<AppRecord> {
 export async function updateApp(id: number, input: AppUpsertInput): Promise<AppRecord> {
   const supabase = await requireAdminClient()
 
+  const normalizedVendorId =
+    input.vendor_id === "__none__" || !input.vendor_id
+      ? null
+      : input.vendor_id.trim() || null
+
   const payload = {
     name: input.name.trim(),
     short_name: normalizeText(input.short_name),
-    vendor_id: input.vendor_id?.trim() || null,
+    vendor_id: normalizedVendorId,
   }
 
   const { data, error } = await supabase

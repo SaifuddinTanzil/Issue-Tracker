@@ -43,11 +43,13 @@ import {
   getManagedUsers,
   rejectAccessRequest,
   revokeManagedUserAccess,
+  updateManagedUserVendor,
   type AccessRequest,
   type ManagedUser,
   type ManagedUserRole,
   updateManagedUserRole,
 } from "@/lib/access-control"
+import { getAllVendors, type Vendor } from "@/app/actions/vendors"
 import { addStoredNotification, type AppNotification } from "@/lib/mock-data"
 
 type UserRole = Extract<ManagedUserRole, "Admin" | "Resolver" | "Reporter">
@@ -70,6 +72,7 @@ export default function AdminDashboardPage() {
 
   const [accessRequests, setAccessRequests] = useState<AccessRequest[]>([])
   const [directoryUsers, setDirectoryUsers] = useState<ManagedUser[]>([])
+  const [vendors, setVendors] = useState<Vendor[]>([])
   const [approveDialogOpen, setApproveDialogOpen] = useState(false)
   const [pendingRequest, setPendingRequest] = useState<AccessRequest | null>(null)
   const [selectedApprovalRole, setSelectedApprovalRole] = useState<AssignableRole>("Reporter")
@@ -82,12 +85,14 @@ export default function AdminDashboardPage() {
     }
 
     const loadAdminData = async () => {
-      const [requests, users] = await Promise.all([
+      const [requests, users, allVendors] = await Promise.all([
         getAccessRequests(),
         getManagedUsers(),
+        getAllVendors(),
       ])
       setAccessRequests(requests)
       setDirectoryUsers(users)
+      setVendors(allVendors)
     }
 
     loadAdminData()
@@ -230,6 +235,37 @@ export default function AdminDashboardPage() {
     run()
   }
 
+  const handleVendorChange = (userId: string, vendorId: string | null) => {
+    const run = async () => {
+      await updateManagedUserVendor(userId, vendorId)
+      const users = await getManagedUsers()
+      setDirectoryUsers(users)
+
+      const updatedUser = users.find((user) => user.id === userId)
+      const vendorName = vendorId ? vendors.find((v) => v.id === vendorId)?.name : "None"
+
+      if (updatedUser) {
+        const notification: AppNotification = {
+          id: `notif-${Date.now()}`,
+          userId: updatedUser.email,
+          title: "Vendor Assignment Updated",
+          message: `Your vendor assignment has been updated to ${vendorName} by Admin.`,
+          isRead: false,
+          createdAt: new Date().toISOString(),
+          linkHref: "/profile",
+        }
+        await addStoredNotification(notification)
+      }
+
+      toast({
+        title: "Vendor Assigned",
+        description: `Vendor assignment updated to ${vendorName}.`,
+      })
+    }
+
+    run()
+  }
+
   if (userProfile?.role && userProfile.role !== "Admin") {
     return (
       <AppLayout>
@@ -259,9 +295,14 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
 
-              <Button asChild variant="outline" className="w-full md:w-auto">
-                <Link href="/dashboard/admin/apps">Manage Apps</Link>
-              </Button>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button asChild variant="outline" className="w-full sm:w-auto">
+                  <Link href="/dashboard/admin/apps">Manage Apps</Link>
+                </Button>
+                <Button asChild variant="outline" className="w-full sm:w-auto">
+                  <Link href="/dashboard/admin/vendors">Manage Vendors</Link>
+                </Button>
+              </div>
             </div>
           </header>
 
@@ -356,6 +397,7 @@ export default function AdminDashboardPage() {
                           <TableHead className="min-w-56">{tx("Name", "নাম")}</TableHead>
                           <TableHead className="min-w-64">User Email</TableHead>
                           <TableHead className="min-w-44">{tx("Current Role", "বর্তমান রোল")}</TableHead>
+                          <TableHead className="min-w-40">Vendor Assignment</TableHead>
                           <TableHead className="min-w-28">{tx("Status", "স্ট্যাটাস")}</TableHead>
                           <TableHead className="min-w-44 text-right">{tx("Actions", "অ্যাকশন")}</TableHead>
                         </TableRow>
@@ -384,6 +426,26 @@ export default function AdminDashboardPage() {
                                   </SelectContent>
                                 </Select>
                               </div>
+                            </TableCell>
+                            <TableCell>
+                              <Select
+                                value={user.vendorId || "__none__"}
+                                onValueChange={(value) =>
+                                  handleVendorChange(user.id, value === "__none__" ? null : value)
+                                }
+                              >
+                                <SelectTrigger className="h-8 w-36 bg-white">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="__none__">None</SelectItem>
+                                  {vendors.map((vendor) => (
+                                    <SelectItem key={vendor.id} value={vendor.id}>
+                                      {vendor.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
                             </TableCell>
                             <TableCell>
                               <Badge className={user.status === "active" ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-100" : "bg-red-100 text-red-800 hover:bg-red-100"}>
