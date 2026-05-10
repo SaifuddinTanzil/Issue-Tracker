@@ -41,7 +41,7 @@ import {
 const appSchema = z.object({
   name: z.string().trim().min(1, "App name is required"),
   short_name: z.string().trim().max(50, "Short name must be 50 characters or fewer").optional().or(z.literal("")),
-  vendor_id: z.string().trim().min(1, "Assigned vendor is required"),
+  vendor_id: z.string().trim().optional().or(z.literal("")).nullable(),
 })
 
 type AppFormValues = z.infer<typeof appSchema>
@@ -81,7 +81,7 @@ export function AppForm({ open, onOpenChange, mode, vendors, app, onSaved }: App
     const payload: AppUpsertInput = {
       name: values.name.trim(),
       short_name: values.short_name?.trim() || null,
-      vendor_id: values.vendor_id.trim(),
+      vendor_id: values.vendor_id?.trim() ? values.vendor_id.trim() : null,
     }
 
     try {
@@ -156,16 +156,17 @@ export function AppForm({ open, onOpenChange, mode, vendors, app, onSaved }: App
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Assigned Vendor</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value ?? ""}>
                     <FormControl>
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select a vendor" />
+                        <SelectValue placeholder="Select a vendor (optional)" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
+                      <SelectItem value="">None (Internal App)</SelectItem>
                       {vendors.length === 0 ? (
                         <SelectItem disabled value="__empty__">
-                          No vendors available
+                          No other vendors available
                         </SelectItem>
                       ) : (
                         vendors.map((vendor) => (

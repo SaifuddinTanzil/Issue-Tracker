@@ -26,7 +26,7 @@ export interface AppsPageData {
 export interface AppUpsertInput {
   name: string
   short_name?: string | null
-  vendor_id: string
+  vendor_id?: string | null
 }
 
 function normalizeText(value?: string | null): string | null {
@@ -143,7 +143,7 @@ export async function createApp(input: AppUpsertInput): Promise<AppRecord> {
   const payload = {
     name: input.name.trim(),
     short_name: normalizeText(input.short_name),
-    vendor_id: input.vendor_id.trim(),
+    vendor_id: input.vendor_id?.trim() || null,
   }
 
   const { data, error } = await supabase
@@ -157,7 +157,7 @@ export async function createApp(input: AppUpsertInput): Promise<AppRecord> {
   }
 
   const vendors = await getVendorOptions()
-  const vendorName = vendors.find((vendor) => vendor.vendor_id === data.vendor_id)?.vendor_name ?? data.vendor_id
+  const vendorName = data.vendor_id ? vendors.find((vendor) => vendor.vendor_id === data.vendor_id)?.vendor_name ?? data.vendor_id : null
 
   revalidatePath("/dashboard/admin/apps")
 
@@ -177,7 +177,7 @@ export async function updateApp(id: number, input: AppUpsertInput): Promise<AppR
   const payload = {
     name: input.name.trim(),
     short_name: normalizeText(input.short_name),
-    vendor_id: input.vendor_id.trim(),
+    vendor_id: input.vendor_id?.trim() || null,
   }
 
   const { data, error } = await supabase
@@ -192,7 +192,7 @@ export async function updateApp(id: number, input: AppUpsertInput): Promise<AppR
   }
 
   const vendors = await getVendorOptions()
-  const vendorName = vendors.find((vendor) => vendor.vendor_id === data.vendor_id)?.vendor_name ?? data.vendor_id
+  const vendorName = data.vendor_id ? vendors.find((vendor) => vendor.vendor_id === data.vendor_id)?.vendor_name ?? data.vendor_id : null
 
   revalidatePath("/dashboard/admin/apps")
 
