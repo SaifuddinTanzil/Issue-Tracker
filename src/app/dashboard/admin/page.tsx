@@ -4,6 +4,7 @@ import { useMemo, useState } from "react"
 import { Settings, ShieldCheck, Users } from "lucide-react"
 import { Search } from "lucide-react"
 import { useEffect } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 
 import { AppLayout } from "@/components/app-layout"
@@ -247,14 +248,20 @@ export default function AdminDashboardPage() {
       <div className="min-h-[calc(100vh-7rem)] bg-gray-50 p-4 md:p-6">
         <div className="mx-auto w-full max-w-7xl space-y-6">
           <header className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-gray-100 p-2 text-gray-700">
-                <Settings className="size-5" />
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-gray-100 p-2 text-gray-700">
+                  <Settings className="size-5" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold tracking-tight text-gray-900">{tx("System Administration", "সিস্টেম অ্যাডমিনিস্ট্রেশন")}</h1>
+                  <p className="text-sm text-gray-600">{tx("Manage access requests and directory permissions.", "অ্যাক্সেস অনুরোধ ও ইউজার অনুমতি পরিচালনা করুন।")}</p>
+                </div>
               </div>
-              <div>
-                <h1 className="text-2xl font-bold tracking-tight text-gray-900">{tx("System Administration", "সিস্টেম অ্যাডমিনিস্ট্রেশন")}</h1>
-                <p className="text-sm text-gray-600">{tx("Manage access requests and directory permissions.", "অ্যাক্সেস অনুরোধ ও ইউজার অনুমতি পরিচালনা করুন।")}</p>
-              </div>
+
+              <Button asChild variant="outline" className="w-full md:w-auto">
+                <Link href="/dashboard/admin/apps">Manage Apps</Link>
+              </Button>
             </div>
           </header>
 
