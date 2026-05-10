@@ -139,10 +139,6 @@ export default function IssueDetailPage() {
     if (optionStatus === "closed" && !isReporter && currentUserRole !== "Admin") {
       return true
     }
-    // Only Admin/Manager can move to Triaged or Rejected
-    if ((optionStatus === "triaged" || optionStatus === "rejected") && !isAdminOrManager) {
-      return true
-    }
     return false
   }
 
