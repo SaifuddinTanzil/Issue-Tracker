@@ -429,7 +429,7 @@ export default function AdminDashboardPage() {
                             </TableCell>
                             <TableCell>
                               <Select
-                                value={user.vendorId || "__none__"}
+                                value={user.vendor_id || "__none__"}
                                 onValueChange={(value) =>
                                   handleVendorChange(user.id, value === "__none__" ? null : value)
                                 }
