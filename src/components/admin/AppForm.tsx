@@ -41,7 +41,7 @@ import {
 const appSchema = z.object({
   name: z.string().trim().min(1, "App name is required"),
   short_name: z.string().trim().max(50, "Short name must be 50 characters or fewer").optional().or(z.literal("")),
-  vendor_id: z.string().trim().optional().or(z.literal("")).nullable(),
+  vendor_id: z.string().optional().nullable(),
 })
 
 type AppFormValues = z.infer<typeof appSchema>
@@ -63,7 +63,7 @@ export function AppForm({ open, onOpenChange, mode, vendors, app, onSaved }: App
     defaultValues: {
       name: "",
       short_name: "",
-      vendor_id: "",
+      vendor_id: "__none__",
     },
   })
 
@@ -73,7 +73,7 @@ export function AppForm({ open, onOpenChange, mode, vendors, app, onSaved }: App
     form.reset({
       name: app?.name ?? "",
       short_name: app?.short_name ?? "",
-      vendor_id: app?.vendor_id ?? "",
+      vendor_id: app?.vendor_id ?? "__none__",
     })
   }, [app, form, open])
 
@@ -81,7 +81,12 @@ export function AppForm({ open, onOpenChange, mode, vendors, app, onSaved }: App
     const payload: AppUpsertInput = {
       name: values.name.trim(),
       short_name: values.short_name?.trim() || null,
-      vendor_id: values.vendor_id?.trim() ? values.vendor_id.trim() : null,
+      vendor_id:
+        values.vendor_id === "__none__"
+          ? null
+          : values.vendor_id?.trim()
+          ? values.vendor_id.trim()
+          : null,
     }
 
     try {
@@ -156,14 +161,14 @@ export function AppForm({ open, onOpenChange, mode, vendors, app, onSaved }: App
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Assigned Vendor</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                  <Select onValueChange={field.onChange} value={field.value ?? "__none__"}>
                     <FormControl>
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select a vendor (optional)" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="">None (Internal App)</SelectItem>
+                      <SelectItem value="__none__">None (Internal App)</SelectItem>
                       {vendors.length === 0 ? (
                         <SelectItem disabled value="__empty__">
                           No other vendors available
