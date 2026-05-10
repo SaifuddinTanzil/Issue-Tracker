@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 
 import { issueFormSchema, type IssueFormData } from "@/lib/schema";
+import { createClient as createBrowserClient } from "@/lib/supabase/client";
 import { issues, addStoredIssue, type Issue, type Severity, type Category, type Environment as MockEnv } from "@/lib/mock-data";
 import {
   APPLICATIONS,
@@ -214,6 +215,26 @@ export default function IssueSubmissionForm() {
 
     const metadata = captureSystemMetadata();
     
+    // Resolve vendor assignment using apps table when Supabase is configured
+    let resolvedVendorId: string | undefined = undefined
+    try {
+      const supabase = createBrowserClient()
+      if (supabase?.from) {
+        const { data: appRow, error } = await supabase
+          .from('apps')
+          .select('vendor_id')
+          .eq('id', data.applicationId)
+          .maybeSingle()
+
+        if (error) {
+          console.warn('Failed to lookup app vendor:', error)
+        }
+
+        resolvedVendorId = (appRow as any)?.vendor_id ?? undefined
+      }
+    } catch (err) {
+      console.warn('Vendor lookup error', err)
+    }
     // Map form data to our mock Issue interface
     const app = APPLICATIONS.find(a => a.id === data.applicationId);
     const cat = CATEGORIES.find(c => c.id === data.categoryId);
@@ -230,6 +251,7 @@ export default function IssueSubmissionForm() {
       title: data.title,
       application: app?.name || "Unknown App",
       status: "open",
+      vendorId: resolvedVendorId ?? app?.code,
       severity: (sev?.slug as Severity) || "medium",
       category: (cat?.slug as Category) || "bug",
       environment: envMap[data.environment] || "uat",

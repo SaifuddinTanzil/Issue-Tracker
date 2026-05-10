@@ -15,6 +15,7 @@ import {
 } from "lucide-react"
 
 import { AppLayout } from "@/components/app-layout"
+import { useAuth } from "@/components/auth-provider"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -46,7 +47,7 @@ interface User {
   avatarFallback: string
 }
 
-type TicketStatus = "Open" | "In Progress" | "Ready for Retest" | "Closed"
+type TicketStatus = "Open" | "In Progress" | "Ready for Retest" | "Closed" | "Blocked"
 
 interface Comment {
   id: string
@@ -206,6 +207,22 @@ export default function TicketResolutionPage() {
 
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const { toast } = useToast()
+  const { userProfile } = useAuth()
+
+  // Compute allowed status options based on user role
+  const roleNormalized = (userProfile?.role || "").toString().toLowerCase()
+  const statusOptions: TicketStatus[] = (() => {
+    if (roleNormalized === "vendor" || roleNormalized === "resolver") {
+      return ["In Progress", "Blocked", "Ready for Retest"]
+    }
+    if (roleNormalized === "reporter") {
+      // Reporter can only change Ready for Retest -> In Progress
+      if (ticket.status === "Ready for Retest") return ["In Progress"]
+      return []
+    }
+    // Admin or others
+    return ["Open", "In Progress", "Ready for Retest", "Closed", "Blocked"]
+  })()
 
   const daysOpen = useMemo(() => {
     const createdAtMs = new Date(ticket.createdAt).getTime()
@@ -271,24 +288,7 @@ export default function TicketResolutionPage() {
     })
   }
 
-  const handleAssigneeChange = (assigneeId: string) => {
-    const previousAssignee =
-      DEV_USERS.find((user) => user.id === ticket.assigneeId)?.name ?? "Unassigned"
-    const nextAssignee =
-      DEV_USERS.find((user) => user.id === assigneeId)?.name ?? "Unassigned"
-
-    if (previousAssignee === nextAssignee) {
-      return
-    }
-
-    setTicket((prev) => ({ ...prev, assigneeId }))
-    appendSystemEvent(`reassigned ticket from ${previousAssignee} to ${nextAssignee}`)
-
-    toast({
-      title: "Assignee updated",
-      description: `Ticket assigned to ${nextAssignee}.`,
-    })
-  }
+  // Assignee selection is handled by vendor groups; per new auto-assignment architecture we remove manual assignee UI.
 
   const handleAttachmentPick = () => {
     fileInputRef.current?.click()
@@ -585,34 +585,25 @@ export default function TicketResolutionPage() {
                 <CardContent className="space-y-5">
                   <div className="space-y-2">
                     <Label className="text-sm font-medium text-gray-800">Status</Label>
-                    <Select value={ticket.status} onValueChange={(value) => handleStatusChange(value as TicketStatus)}>
+                    <Select value={ticket.status} onValueChange={(value) => {
+                      // Prevent invalid transitions client-side
+                      const next = value as TicketStatus
+                      const allowed = new Set([...statusOptions, ticket.status])
+                      if (!allowed.has(next)) return
+                      handleStatusChange(next)
+                    }}>
                       <SelectTrigger className="bg-white">
                         <SelectValue placeholder="Select status" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Open">Open</SelectItem>
-                        <SelectItem value="In Progress">In Progress</SelectItem>
-                        <SelectItem value="Ready for Retest">Ready for Retest</SelectItem>
-                        <SelectItem value="Closed">Closed</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-800">Assignee</Label>
-                    <Select value={ticket.assigneeId} onValueChange={handleAssigneeChange}>
-                      <SelectTrigger className="bg-white">
-                        <SelectValue placeholder="Select assignee" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {DEV_USERS.map((developer) => (
-                          <SelectItem key={developer.id} value={developer.id}>
-                            {developer.name}
-                          </SelectItem>
+                        {Array.from(new Set([...statusOptions, ticket.status])).map((s) => (
+                          <SelectItem key={s} value={s}>{s}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
+
+                  {/* Assignee selection removed — assignment handled by vendor group mapping */}
 
                   <Separator />
 

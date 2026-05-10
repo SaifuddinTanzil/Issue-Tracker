@@ -20,6 +20,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { AppLayout } from "@/components/app-layout"
 import { useAuth } from "@/components/auth-provider"
 import { applications, categoryConfig, addStoredIssue, getStoredIssues, addStoredNotification, type Issue, type Severity, type Category, type Environment } from "@/lib/mock-data"
+import { createClient as createBrowserClient } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
 import { getAllowedAppsForUser } from "@/lib/access-control"
 
@@ -132,16 +133,86 @@ export default function SubmitIssuePage() {
       }
     }
 
+    // Resolve vendor assignment via apps table (if available)
+    try {
+      const supabase = createBrowserClient()
+      if (supabase?.from) {
+        const { data: appRow } = await supabase.from('apps').select('vendor_id').eq('id', formData.application).maybeSingle()
+        (newIssue as any).vendorId = (appRow as any)?.vendor_id ?? undefined
+      } else {
+        const app = applications.find(a => a.id === formData.application)
+        (newIssue as any).vendorId = app?.code
+      }
+    } catch (err) {
+      console.warn('Failed to resolve vendor for application', err)
+      const app = applications.find(a => a.id === formData.application)
+      (newIssue as any).vendorId = app?.code
+    }
+
     await addStoredIssue(newIssue)
-    await addStoredNotification({
-      id: `notif-${Date.now()}`,
-      userId: "admin@company.com",
-      title: "New Issue Submitted",
-      message: `${newIssue.reporter} submitted ${newIssue.id} in ${newIssue.application}.`,
-      isRead: false,
-      createdAt: new Date().toISOString(),
-      linkHref: `/issues/${newIssue.id}`,
-    })
+
+    // Create notifications for all admins + vendor resolvers matching the assigned vendor
+    try {
+      const supabase = createBrowserClient()
+      if (supabase?.from) {
+        // admins
+        const { data: admins } = await supabase.from('users').select('id,email').eq('role', 'admin')
+        if (admins && Array.isArray(admins)) {
+          for (const a of admins) {
+            await addStoredNotification({
+              id: `notif-${Date.now()}-${a.id}`,
+              userId: a.id,
+              title: 'New Issue Submitted',
+              message: `${newIssue.reporter} submitted ${newIssue.id} in ${newIssue.application}.`,
+              isRead: false,
+              createdAt: new Date().toISOString(),
+              linkHref: `/issues/${newIssue.id}`,
+            })
+          }
+        }
+
+        // resolvers for vendor
+        const vendorId = (newIssue as any).vendorId
+        if (vendorId) {
+          const { data: resolvers } = await supabase.from('users').select('id,email').eq('role', 'resolver').eq('vendor_id', vendorId)
+          if (resolvers && Array.isArray(resolvers)) {
+            for (const r of resolvers) {
+              await addStoredNotification({
+                id: `notif-${Date.now()}-${r.id}`,
+                userId: r.id,
+                title: 'New Issue Assigned to Vendor',
+                message: `${newIssue.reporter} submitted ${newIssue.id} in ${newIssue.application}.`,
+                isRead: false,
+                createdAt: new Date().toISOString(),
+                linkHref: `/issues/${newIssue.id}`,
+              })
+            }
+          }
+        }
+      } else {
+        // fallback: single admin notification
+        await addStoredNotification({
+          id: `notif-${Date.now()}`,
+          userId: "admin@company.com",
+          title: "New Issue Submitted",
+          message: `${newIssue.reporter} submitted ${newIssue.id} in ${newIssue.application}.`,
+          isRead: false,
+          createdAt: new Date().toISOString(),
+          linkHref: `/issues/${newIssue.id}`,
+        })
+      }
+    } catch (err) {
+      console.warn('Notification creation failed, falling back to single admin notification', err)
+      await addStoredNotification({
+        id: `notif-${Date.now()}`,
+        userId: "admin@company.com",
+        title: "New Issue Submitted",
+        message: `${newIssue.reporter} submitted ${newIssue.id} in ${newIssue.application}.`,
+        isRead: false,
+        createdAt: new Date().toISOString(),
+        linkHref: `/issues/${newIssue.id}`,
+      })
+    }
 
     // Show success message
     setSubmitted(true)

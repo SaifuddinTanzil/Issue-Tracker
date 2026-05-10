@@ -21,6 +21,7 @@ export interface Issue {
   actualResult: string
   reproductionSteps: string[]
   attachments: string[]
+  vendorId?: string
   systemMetadata?: {
     userAgent: string
     platform: string
@@ -53,6 +54,7 @@ export interface AppNotification {
   linkHref?: string
 }
 
+// Kept applications and users so your UI dropdowns still have options
 export const applications: Application[] = [
   { id: "app-1", name: "BRAC Microfinance Portal", shortName: "MFP" },
   { id: "app-2", name: "HR Management System", shortName: "HRMS" },
@@ -68,256 +70,14 @@ export const users: User[] = [
   { id: "user-5", name: "Fatima Begum", avatar: "FB", email: "fatima@brac.net" },
 ]
 
-export const issues: Issue[] = [
-  {
-    id: "UAT-001",
-    title: "Login button not responsive on mobile devices",
-    application: "BRAC Microfinance Portal",
-    status: "open",
-    severity: "high",
-    category: "ui-ux",
-    environment: "Ho-uat",
-    assignedTo: "Sarah Ahmed",
-    reporter: "Rafiq Hassan",
-    createdAt: "2024-01-15",
-    module: "Authentication",
-    expectedResult: "Login button should be clickable on all mobile devices",
-    actualResult: "Button is unresponsive on iOS Safari and some Android browsers",
-    reproductionSteps: [
-      "Open the application on a mobile device",
-      "Navigate to the login page",
-      "Enter valid credentials",
-      "Attempt to click the login button",
-    ],
-    attachments: ["/placeholder.svg", "/placeholder.svg"],
-    systemMetadata: {
-      userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15",
-      platform: "iPhone",
-      language: "en-US",
-      screenResolution: "390x844",
-      timestamp: "2024-01-15T09:23:14Z",
-    }
-  },
-  {
-    id: "UAT-002",
-    title: "Dashboard charts fail to load with large datasets",
-    application: "HR Management System",
-    status: "in-progress",
-    severity: "medium",
-    category: "bug",
-    environment: "Ho-uat",
-    assignedTo: "Nadia Khan",
-    reporter: "Imran Ali",
-    createdAt: "2024-01-14",
-    module: "Dashboard",
-    expectedResult: "Charts should load within 3 seconds regardless of dataset size",
-    actualResult: "Charts timeout after 30 seconds with datasets over 10,000 records",
-    reproductionSteps: [
-      "Login to HR Management System",
-      "Navigate to Analytics Dashboard",
-      "Select date range spanning 2+ years",
-      "Observe loading behavior",
-    ],
-    attachments: ["/placeholder.svg"],
-  },
-  {
-    id: "UAT-003",
-    title: "Export to PDF generates corrupted files",
-    application: "Inventory Tracker",
-    status: "ready-for-retest",
-    severity: "high",
-    category: "bug",
-    environment: "field-uat",
-    assignedTo: "Rafiq Hassan",
-    reporter: "Sarah Ahmed",
-    createdAt: "2024-01-13",
-    module: "Reports",
-    expectedResult: "PDF exports should open correctly in all PDF readers",
-    actualResult: "PDF files are corrupted when report contains images",
-    reproductionSteps: [
-      "Generate an inventory report with product images",
-      "Click Export to PDF button",
-      "Download the generated file",
-      "Attempt to open in Adobe Reader",
-    ],
-    attachments: ["/placeholder.svg", "/placeholder.svg", "/placeholder.svg"],
-  },
-  {
-    id: "UAT-004",
-    title: "Add dark mode toggle to settings",
-    application: "Customer Relations Portal",
-    status: "open",
-    severity: "low",
-    category: "suggestion",
-    environment: "Ho-uat",
-    assignedTo: "Imran Ali",
-    reporter: "Nadia Khan",
-    createdAt: "2024-01-12",
-    module: "Settings",
-    expectedResult: "Users should be able to toggle between light and dark modes",
-    actualResult: "No dark mode option available",
-    reproductionSteps: [
-      "Navigate to Settings page",
-      "Look for appearance or theme options",
-    ],
-    attachments: [],
-  },
-  {
-    id: "UAT-005",
-    title: "Search results pagination breaks after filter change",
-    application: "BRAC Microfinance Portal",
-    status: "in-progress",
-    severity: "medium",
-    category: "bug",
-    environment: "Ho-uat",
-    assignedTo: "Sarah Ahmed",
-    reporter: "Fatima Begum",
-    createdAt: "2024-01-11",
-    module: "Search",
-    expectedResult: "Pagination should reset to page 1 when filters are changed",
-    actualResult: "Stays on current page showing incorrect or no results",
-    reproductionSteps: [
-      "Perform a search query",
-      "Navigate to page 3 of results",
-      "Apply a new filter",
-      "Observe pagination state",
-    ],
-    attachments: ["/placeholder.svg"],
-  },
-  {
-    id: "UAT-006",
-    title: "Form validation messages appear in wrong language",
-    application: "HR Management System",
-    status: "closed",
-    severity: "low",
-    category: "ui-ux",
-    environment: "production",
-    assignedTo: "Nadia Khan",
-    reporter: "Rafiq Hassan",
-    createdAt: "2024-01-10",
-    module: "Forms",
-    expectedResult: "Validation messages should match selected language",
-    actualResult: "Messages always appear in English regardless of language setting",
-    reproductionSteps: [
-      "Change language to Bengali",
-      "Navigate to any form",
-      "Submit with invalid data",
-      "Check validation message language",
-    ],
-    attachments: [],
-  },
-  {
-    id: "UAT-007",
-    title: "Session timeout not working correctly",
-    application: "Inventory Tracker",
-    status: "in-progress",
-    severity: "high",
-    category: "bug",
-    environment: "Ho-uat",
-    assignedTo: "Imran Ali",
-    reporter: "Sarah Ahmed",
-    createdAt: "2024-01-09",
-    module: "Authentication",
-    expectedResult: "Session should expire after 30 minutes of inactivity",
-    actualResult: "Session never expires, even after hours of inactivity",
-    reproductionSteps: [
-      "Login to the application",
-      "Leave the browser idle for 1 hour",
-      "Attempt to perform any action",
-      "Observe that session is still active",
-    ],
-    attachments: ["/placeholder.svg"],
-  },
-  {
-    id: "UAT-008",
-    title: "Customer data not syncing between modules",
-    application: "Customer Relations Portal",
-    status: "open",
-    severity: "high",
-    category: "bug",
-    environment: "field-uat",
-    assignedTo: "Fatima Begum",
-    reporter: "Imran Ali",
-    createdAt: "2024-01-08",
-    module: "Data Sync",
-    expectedResult: "Customer updates should reflect across all modules instantly",
-    actualResult: "Changes take up to 24 hours to propagate",
-    reproductionSteps: [
-      "Update customer information in CRM module",
-      "Check customer info in Billing module",
-      "Verify same customer in Support module",
-      "Note discrepancies in data",
-    ],
-    attachments: ["/placeholder.svg", "/placeholder.svg"],
-  },
-]
+// 🚀 CLEAN SLATE: All legacy dummy data removed to prevent UI crashes
+export const issues: Issue[] = []
 
-export type IssueComment = typeof commentsData[0];
-
-const commentsData = [
-  {
-    id: "comment-1",
-    issueId: "UAT-001",
-    user: users[0],
-    content: "I've confirmed this issue on iPhone 13 and Samsung Galaxy S21. The button appears clickable but doesn't trigger any action.",
-    createdAt: "2024-01-15T10:30:00",
-  },
-  {
-    id: "comment-2",
-    issueId: "UAT-001",
-    user: users[2],
-    content: "This seems related to the CSS touch-action property. I'll investigate further and update.",
-    createdAt: "2024-01-15T14:45:00",
-  },
-  {
-    id: "comment-3",
-    issueId: "UAT-001",
-    user: users[1],
-    content: "We should prioritize this as it's affecting all mobile users trying to log in.",
-    createdAt: "2024-01-16T09:15:00",
-  },
-]
-
+export type IssueComment = any; // Type simplified for clean slate
+const commentsData: IssueComment[] = []
 export const comments: IssueComment[] = commentsData;
 
-export const mockNotifications: AppNotification[] = [
-  {
-    id: "notif-1",
-    userId: "user-1", // Sarah Ahmed
-    title: "New Issue Assigned",
-    message: "You have been assigned to UAT-001: Login button not responsive.",
-    isRead: false,
-    createdAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(), // 30 mins ago
-    linkHref: "/issues/UAT-001"
-  },
-  {
-    id: "notif-2",
-    userId: "user-1",
-    title: "New Comment",
-    message: "Nadia Khan commented on UAT-002.",
-    isRead: false,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), // 2 hours ago
-    linkHref: "/issues/UAT-002"
-  },
-  {
-    id: "notif-3",
-    userId: "user-1",
-    title: "Issue Status Changed",
-    message: "UAT-003 status changed to Ready for Retest.",
-    isRead: true,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), // 1 day ago
-    linkHref: "/issues/UAT-003"
-  },
-  {
-    id: "notif-4",
-    userId: "user-1",
-    title: "New Comment",
-    message: "Rafiq Hassan replied to your comment on UAT-005.",
-    isRead: true,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(), // 2 days ago
-    linkHref: "/issues/UAT-005"
-  }
-]
+export const mockNotifications: AppNotification[] = []
 
 export const statusConfig: Record<IssueStatus, { label: string; color: string; bgColor: string }> = {
   open: { label: "Open", color: "text-blue-700", bgColor: "bg-blue-50 border-blue-200" },
@@ -383,6 +143,9 @@ function writeToLocalStorage<T>(key: string, value: T): void {
 function ensureMockDataSeeded(): void {
   if (!canUseLocalStorage()) return
 
+  // Only seed local mock data when Supabase is NOT configured.
+  if (hasSupabaseConfig) return
+
   if (!window.localStorage.getItem(STORAGE_KEYS.issues)) {
     writeToLocalStorage(STORAGE_KEYS.issues, issues)
   }
@@ -413,14 +176,10 @@ export async function getStoredIssues(): Promise<Issue[]> {
   if (error) {
     return readFromLocalStorage<Issue[]>(STORAGE_KEYS.issues, issues)
   }
-
   const resolvedIssues = (data as Issue[] | null) ?? []
-  if (resolvedIssues.length > 0) {
-    writeToLocalStorage(STORAGE_KEYS.issues, resolvedIssues)
-    return resolvedIssues
-  }
-
-  return readFromLocalStorage<Issue[]>(STORAGE_KEYS.issues, issues)
+  // Always persist and return what Supabase returns (allow empty arrays when DB is empty)
+  writeToLocalStorage(STORAGE_KEYS.issues, resolvedIssues)
+  return resolvedIssues
 }
 
 export async function addStoredIssue(issue: Issue): Promise<void> {
@@ -432,9 +191,16 @@ export async function addStoredIssue(issue: Issue): Promise<void> {
     return
   }
 
+  // Map camelCase vendorId to DB column vendor_id and ensure app_name is set
+  const payload = {
+    ...issue,
+    vendor_id: (issue as any).vendorId ?? null,
+    app_name: issue.application,
+  }
+
   const { error } = await supabase
     .from('issues')
-    .insert([issue]);
+    .insert([payload]);
     
   if (error) {
     const localIssues = readFromLocalStorage<Issue[]>(STORAGE_KEYS.issues, issues)
@@ -509,19 +275,12 @@ export async function getStoredComments(issueId?: string): Promise<IssueComment[
       ? localComments.filter((comment) => comment.issueId === issueId)
       : localComments
   }
-
   const resolvedComments = (data as IssueComment[] | null) ?? []
-  if (resolvedComments.length > 0) {
-    writeToLocalStorage(STORAGE_KEYS.comments, resolvedComments)
-    return issueId
-      ? resolvedComments.filter((comment) => comment.issueId === issueId)
-      : resolvedComments
-  }
-
-  const localComments = readFromLocalStorage<IssueComment[]>(STORAGE_KEYS.comments, commentsData)
+  // Persist whatever the DB returned (including empty arrays)
+  writeToLocalStorage(STORAGE_KEYS.comments, resolvedComments)
   return issueId
-    ? localComments.filter((comment) => comment.issueId === issueId)
-    : localComments
+    ? resolvedComments.filter((comment) => comment.issueId === issueId)
+    : resolvedComments
 }
 
 export async function addStoredComment(comment: IssueComment): Promise<void> {
@@ -577,17 +336,13 @@ export async function getStoredNotifications(userId?: string): Promise<AppNotifi
     }
     return readFromLocalStorage<AppNotification[]>(STORAGE_KEYS.notifications, mockNotifications)
   }
-
   const resolvedNotifications = (data as AppNotification[] | null) ?? []
-  if (resolvedNotifications.length > 0) {
-    writeToLocalStorage(STORAGE_KEYS.notifications, resolvedNotifications)
-    return resolvedNotifications
-  }
-
+  // Persist and return DB notifications even if empty
+  writeToLocalStorage(STORAGE_KEYS.notifications, resolvedNotifications)
   if (userId) {
-    return mockNotifications.filter(n => n.userId === userId)
+    return resolvedNotifications.filter(n => n.userId === userId)
   }
-  return readFromLocalStorage<AppNotification[]>(STORAGE_KEYS.notifications, mockNotifications)
+  return resolvedNotifications
 }
 
 export async function markAllNotificationsRead(): Promise<void> {
@@ -628,7 +383,8 @@ export async function addStoredNotification(notification: AppNotification): Prom
  */
 export async function getIssuesForUser(
   userRole: "Admin" | "Resolver" | "Reporter",
-  assignedApps: string[]
+  assignedApps: string[],
+  vendorId?: string,
 ): Promise<Issue[]> {
   const allIssues = await getStoredIssues()
 
@@ -637,6 +393,13 @@ export async function getIssuesForUser(
     return allIssues
   }
 
-  // Reporter and Resolver see only issues from their assigned apps
+  // Resolver: return issues for the vendor OR assigned apps
+  if (userRole === "Resolver") {
+    return allIssues.filter(
+      (issue) => (vendorId && (issue as any).vendorId === vendorId) || assignedApps.includes(issue.application),
+    )
+  }
+
+  // Reporter: only issues from their assigned apps
   return allIssues.filter((issue) => assignedApps.includes(issue.application))
 }
