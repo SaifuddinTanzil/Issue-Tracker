@@ -132,7 +132,9 @@ export function AppForm({ open, onOpenChange, mode, vendors, app, onSaved }: App
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>App Name</FormLabel>
+                  <FormLabel>
+                    App Name <span className="text-destructive">*</span>
+                  </FormLabel>
                   <FormControl>
                     <Input {...field} placeholder="Customer Relationship Manager" />
                   </FormControl>
@@ -160,7 +162,7 @@ export function AppForm({ open, onOpenChange, mode, vendors, app, onSaved }: App
               name="vendor_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Assigned Vendor</FormLabel>
+                  <FormLabel>Assigned Vendor (optional)</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value ?? "__none__"}>
                     <FormControl>
                       <SelectTrigger className="w-full">
@@ -191,7 +193,7 @@ export function AppForm({ open, onOpenChange, mode, vendors, app, onSaved }: App
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={form.formState.isSubmitting || vendors.length === 0}>
+              <Button type="submit" disabled={form.formState.isSubmitting}>
                 {form.formState.isSubmitting ? "Saving..." : mode === "create" ? "Create App" : "Update App"}
               </Button>
             </div>

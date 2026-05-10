@@ -149,6 +149,7 @@ export default function VendorsPage() {
       setFormOpen(false)
       form.reset({ name: "", email: "" })
     } catch (error) {
+      console.error("Vendor save error:", error)
       toast({
         title: "Failed to save vendor",
         description: error instanceof Error ? error.message : "Please try again.",
