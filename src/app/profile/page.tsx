@@ -18,8 +18,7 @@ import { AppLayout } from "@/components/app-layout";
 import { useAuth } from "@/components/auth-provider";
 import { createClient } from "@/lib/supabase/client";
 import { useEffect } from "react";
-import { addStoredNotification } from "@/lib/mock-data"
-import { submitAccessRequest } from "@/lib/access-control"
+import { submitAccessRequest } from "@/app/actions/access-requests"
 import { useAppPreferences } from "@/components/app-preferences-provider"
 import { ChangePasswordForm } from "@/components/settings/change-password-form"
 
@@ -95,16 +94,7 @@ export default function ProfilePage() {
     if (!user?.email || !requestedApp) return
 
     try {
-      await submitAccessRequest(user.email, requestedApp)
-      await addStoredNotification({
-        id: `notif-${Date.now()}`,
-        userId: "admin@company.com",
-        title: "New Access Request",
-        message: `${user.email} requested access to ${requestedApp}.`,
-        isRead: false,
-        createdAt: new Date().toISOString(),
-        linkHref: "/dashboard/admin",
-      })
+      await submitAccessRequest({ requestedApp })
 
       setRequestMsg(tx("Access request submitted to Admin.", "অ্যাক্সেস অনুরোধ অ্যাডমিনের কাছে পাঠানো হয়েছে।"))
       setRequestedApp("")
