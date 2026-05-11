@@ -18,7 +18,7 @@ import { AppLayout } from "@/components/app-layout";
 import { useAuth } from "@/components/auth-provider";
 import { createClient } from "@/lib/supabase/client";
 import { useEffect } from "react";
-import { applications, addStoredNotification } from "@/lib/mock-data"
+import { addStoredNotification } from "@/lib/mock-data"
 import { submitAccessRequest } from "@/lib/access-control"
 import { useAppPreferences } from "@/components/app-preferences-provider"
 import { ChangePasswordForm } from "@/components/settings/change-password-form"
@@ -34,6 +34,7 @@ export default function ProfilePage() {
   const [successMsg, setSuccessMsg] = useState("");
   const [requestedApp, setRequestedApp] = useState("")
   const [requestMsg, setRequestMsg] = useState("")
+  const [availableApps, setAvailableApps] = useState<{ id: string | number; name: string }[]>([])
 
   useEffect(() => {
     if (userProfile) {
@@ -42,6 +43,24 @@ export default function ProfilePage() {
       setFullName(user.email.split('@')[0]);
     }
   }, [userProfile, user]);
+
+  useEffect(() => {
+    const loadApps = async () => {
+      const { data, error } = await supabase
+        .from("apps")
+        .select("id, name")
+        .order("name", { ascending: true })
+
+      if (error) {
+        console.warn("Failed to load apps for access request dropdown:", error.message)
+        return
+      }
+
+      setAvailableApps(Array.isArray(data) ? data.map((row) => ({ id: row.id, name: row.name })) : [])
+    }
+
+    loadApps()
+  }, [supabase])
 
   const handleSave = async () => {
     if (!user) return;
@@ -75,20 +94,26 @@ export default function ProfilePage() {
   const handleAccessRequest = async () => {
     if (!user?.email || !requestedApp) return
 
-    await submitAccessRequest(user.email, requestedApp)
-    await addStoredNotification({
-      id: `notif-${Date.now()}`,
-      userId: "admin@company.com",
-      title: "New Access Request",
-      message: `${user.email} requested access to ${requestedApp}.`,
-      isRead: false,
-      createdAt: new Date().toISOString(),
-      linkHref: "/dashboard/admin",
-    })
+    try {
+      await submitAccessRequest(user.email, requestedApp)
+      await addStoredNotification({
+        id: `notif-${Date.now()}`,
+        userId: "admin@company.com",
+        title: "New Access Request",
+        message: `${user.email} requested access to ${requestedApp}.`,
+        isRead: false,
+        createdAt: new Date().toISOString(),
+        linkHref: "/dashboard/admin",
+      })
 
-    setRequestMsg(tx("Access request submitted to Admin.", "অ্যাক্সেস অনুরোধ অ্যাডমিনের কাছে পাঠানো হয়েছে।"))
-    setRequestedApp("")
-    setTimeout(() => setRequestMsg(""), 3000)
+      setRequestMsg(tx("Access request submitted to Admin.", "অ্যাক্সেস অনুরোধ অ্যাডমিনের কাছে পাঠানো হয়েছে।"))
+      setRequestedApp("")
+      setTimeout(() => setRequestMsg(""), 3000)
+    } catch (error) {
+      console.error("Failed to submit access request:", error)
+      setRequestMsg(tx("Failed to submit access request.", "অ্যাক্সেস অনুরোধ জমা দিতে ব্যর্থ হয়েছে।"))
+      setTimeout(() => setRequestMsg(""), 3000)
+    }
   }
 
   return (
@@ -139,19 +164,19 @@ export default function ProfilePage() {
             <div className="space-y-2 md:col-span-2 border-t pt-4">
               <Label>{tx("Request App Access", "অ্যাপ অ্যাক্সেস অনুরোধ")}</Label>
               <div className="flex flex-col gap-2 md:flex-row">
-                <Select value={requestedApp} onValueChange={setRequestedApp}>
+                <Select value={requestedApp} onValueChange={setRequestedApp} disabled={availableApps.length === 0}>
                   <SelectTrigger className="md:w-[320px]">
-                    <SelectValue placeholder={tx("Select an application", "একটি অ্যাপ নির্বাচন করুন")} />
+                    <SelectValue placeholder={availableApps.length > 0 ? tx("Select an application", "একটি অ্যাপ নির্বাচন করুন") : tx("No live apps available", "কোনও লাইভ অ্যাপ পাওয়া যায়নি")} />
                   </SelectTrigger>
                   <SelectContent>
-                    {applications.map((app) => (
+                    {availableApps.map((app) => (
                       <SelectItem key={app.id} value={app.name}>
                         {app.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                <Button type="button" variant="outline" onClick={handleAccessRequest} disabled={!requestedApp}>
+                <Button type="button" variant="outline" onClick={handleAccessRequest} disabled={!requestedApp || availableApps.length === 0}>
                   {tx("Request Access", "অ্যাক্সেস অনুরোধ")}
                 </Button>
               </div>

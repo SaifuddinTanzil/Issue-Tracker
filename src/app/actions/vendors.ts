@@ -40,7 +40,8 @@ async function requireAdminClient() {
     throw new Error(error.message)
   }
 
-  if (profile?.role !== "Admin") {
+  const role = profile?.role?.toString().trim().toLowerCase()
+  if (role !== "admin") {
     throw new Error("Access denied: Admin only")
   }
 
@@ -96,6 +97,7 @@ export async function createVendor(input: VendorCreateInput): Promise<Vendor> {
   }
 
   revalidatePath("/dashboard/admin/vendors")
+  revalidatePath("/dashboard/admin/apps")
 
   return {
     id: data.id,
@@ -132,6 +134,7 @@ export async function updateVendor(id: string, input: VendorCreateInput): Promis
   }
 
   revalidatePath("/dashboard/admin/vendors")
+  revalidatePath("/dashboard/admin/apps")
 
   return {
     id: data.id,
@@ -154,6 +157,7 @@ export async function deleteVendor(id: string): Promise<string> {
   }
 
   revalidatePath("/dashboard/admin/vendors")
+  revalidatePath("/dashboard/admin/apps")
 
   return id
 }

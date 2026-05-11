@@ -42,6 +42,7 @@ export async function getManagedUsers(): Promise<ManagedUser[]> {
   const { data, error } = await supabase
     .from('users')
     .select('id, email, name, role, status, assigned_apps, vendor_id')
+    .order('email', { ascending: true })
   
   if (error || !Array.isArray(data)) return []
   
@@ -122,7 +123,7 @@ export async function submitAccessRequest(userEmail: string, requestedApp: strin
     status: "pending",
   }
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('access_requests')
     .insert({
       id: newRequest.id,
@@ -131,12 +132,20 @@ export async function submitAccessRequest(userEmail: string, requestedApp: strin
       created_at: now,
       status: 'pending',
     })
+    .select('id, user_email, requested_app, created_at, status')
+    .single()
 
-  if (error) {
-    console.error('Failed to submit access request:', error)
+  if (error || !data) {
+    throw new Error(`Failed to submit access request: ${error?.message ?? 'unknown error'}`)
   }
 
-  return newRequest
+  return {
+    id: data.id,
+    userEmail: data.user_email,
+    requestedApp: data.requested_app,
+    createdAt: data.created_at,
+    status: data.status,
+  }
 }
 
 /**
@@ -305,7 +314,7 @@ export async function getManagedUserByEmail(email?: string | null): Promise<Mana
 
 /**
  * Get allowed apps for a user based on their role and vendor assignment
- * - Admin: Returns ["*"] (access to all apps)
+ * - Admin: Returns all apps from public.apps
  * - Resolver: Returns apps matching their vendor_id
  * - Reporter: Returns their assigned apps from database
  */
@@ -313,12 +322,13 @@ export async function getAllowedAppsForUser(email?: string | null, fallbackRole?
   if (!email) return []
 
   const user = await getManagedUserByEmail(email)
-  const role = user?.role ?? (fallbackRole as ManagedUserRole | undefined)
+  const roleCandidate = user?.role ?? fallbackRole
+  const role = roleCandidate?.toString().trim().toLowerCase()
 
   if (!role) return []
 
   // Admin sees all apps
-  if (role === "Admin") {
+  if (role === "admin") {
     const { data, error } = await supabase
       .from('apps')
       .select('name')
@@ -326,11 +336,11 @@ export async function getAllowedAppsForUser(email?: string | null, fallbackRole?
 
     if (error || !Array.isArray(data)) return ["*"]
 
-    return data.length > 0 ? data.map(app => app.name) : ["*"]
+    return data.length > 0 ? data.map((app) => app.name) : ["*"]
   }
 
   // Resolver sees apps matching their vendor_id
-  if (role === "Resolver" && user?.vendor_id) {
+  if (role === "resolver" && user?.vendor_id) {
     const { data, error } = await supabase
       .from('apps')
       .select('name')
@@ -339,7 +349,7 @@ export async function getAllowedAppsForUser(email?: string | null, fallbackRole?
 
     if (error || !Array.isArray(data)) return []
 
-    return data.map(app => app.name)
+    return data.map((app) => app.name)
   }
 
   // Reporter sees only their assigned apps from database

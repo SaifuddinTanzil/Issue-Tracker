@@ -395,8 +395,8 @@ export default function AdminDashboardPage() {
                       <TableHeader>
                         <TableRow>
                           <TableHead className="min-w-56">{tx("Name", "নাম")}</TableHead>
-                          <TableHead className="min-w-64">User Email</TableHead>
-                          <TableHead className="min-w-44">{tx("Current Role", "বর্তমান রোল")}</TableHead>
+                          <TableHead className="min-w-64">{tx("Email", "ইমেইল")}</TableHead>
+                          <TableHead className="min-w-44">{tx("Role", "রোল")}</TableHead>
                           <TableHead className="min-w-40">Vendor Assignment</TableHead>
                           <TableHead className="min-w-28">{tx("Status", "স্ট্যাটাস")}</TableHead>
                           <TableHead className="min-w-44 text-right">{tx("Actions", "অ্যাকশন")}</TableHead>

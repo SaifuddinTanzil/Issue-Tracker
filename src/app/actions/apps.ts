@@ -71,40 +71,20 @@ async function getVendorOptions() {
   const supabase = await createClient()
 
   const { data, error } = await supabase
-    .from("users")
-    .select("id, name, email, role, vendor_id")
-    .not("vendor_id", "is", null)
+    .from("vendors")
+    .select("id, name, email")
+    .order("name", { ascending: true })
 
   if (error) {
     throw new Error(error.message)
   }
 
-  const vendorMap = new Map<string, VendorOption>()
-
-  for (const row of data ?? []) {
-    const vendorId = row.vendor_id?.trim()
-    if (!vendorId) continue
-
-    const role = (row.role ?? "").toString().toLowerCase()
-    if (role !== "resolver" && role !== "vendor" && role !== "admin") {
-      continue
-    }
-
-    if (vendorMap.has(vendorId)) continue
-
-    vendorMap.set(vendorId, {
-      vendor_id: vendorId,
-      vendor_name: getVendorDisplayName({
-        vendor_name: row.name,
-        email: row.email,
-        vendor_id: vendorId,
-      }),
-    })
-  }
-
-  return Array.from(vendorMap.values()).sort((left, right) =>
-    left.vendor_name.localeCompare(right.vendor_name),
-  )
+  return Array.isArray(data)
+    ? data.map((row) => ({
+        vendor_id: String(row.id),
+        vendor_name: row.name || row.email || String(row.id),
+      }))
+    : []
 }
 
 export async function getAppsPageData(): Promise<AppsPageData> {

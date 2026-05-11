@@ -19,7 +19,7 @@ import {
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { AppLayout } from "@/components/app-layout"
 import { useAuth } from "@/components/auth-provider"
-import { applications, categoryConfig, addStoredIssue, getStoredIssues, addStoredNotification, type Issue, type Severity, type Category, type Environment } from "@/lib/mock-data"
+import { categoryConfig, addStoredIssue, getStoredIssues, addStoredNotification, type Issue, type Severity, type Category, type Environment } from "@/lib/mock-data"
 import { createClient as createBrowserClient } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
 import { getAllowedAppsForUser } from "@/lib/access-control"
@@ -43,6 +43,7 @@ export default function SubmitIssuePage() {
     actualResult: "",
     reproductionSteps: "",
   })
+  const [availableApps, setAvailableApps] = useState<{ id: string; name: string }[]>([])
   const [dragActive, setDragActive] = useState(false)
   const [files, setFiles] = useState<File[]>([])
   const [externalUrl, setExternalUrl] = useState("")
@@ -54,9 +55,39 @@ export default function SubmitIssuePage() {
     getAllowedAppsForUser(user?.email, userProfile?.role).then(setAllowedApps)
   }, [user?.email, userProfile?.role])
 
+  useEffect(() => {
+    const loadApps = async () => {
+      try {
+        const supabase = createBrowserClient()
+        const { data, error } = await supabase
+          .from("apps")
+          .select("id, name")
+          .order("name", { ascending: true })
+
+        if (error) {
+          console.warn("Failed to load apps for submit page:", error.message)
+          return
+        }
+
+        if (Array.isArray(data)) {
+          setAvailableApps(
+            data.map((app) => ({
+              id: String(app.id),
+              name: app.name,
+            })),
+          )
+        }
+      } catch (err) {
+        console.warn("Failed to load apps for submit page:", err)
+      }
+    }
+
+    loadApps()
+  }, [])
+
   const visibleApplications = allowedApps.includes("*")
-    ? applications
-    : applications.filter((app) => allowedApps.includes(app.name))
+    ? availableApps
+    : availableApps.filter((app) => allowedApps.includes(app.name))
 
   const isUIUXCategory = formData.category === "ui-ux"
   const hasFiles = files.length > 0
@@ -106,7 +137,7 @@ export default function SubmitIssuePage() {
 
     // Build the Issue object
     const existingIssues = await getStoredIssues()
-    const app = applications.find(a => a.id === formData.application)
+    const app = availableApps.find((a) => a.id === formData.application)
 
     const newIssue: Issue & { vendorId?: string } = {
       id: `UAT-${String(existingIssues.length + 1).padStart(3, '0')}`,
@@ -145,12 +176,11 @@ export default function SubmitIssuePage() {
 
         newIssue.vendorId = appRow?.vendor_id ?? undefined
       } else {
-        const app = applications.find(a => a.id === formData.application)
-        newIssue.vendorId = app?.shortName
+        newIssue.vendorId = undefined
       }
     } catch (err) {
       console.warn('Failed to resolve vendor for application', err)
-      const app = applications.find(a => a.id === formData.application)
+      const app = availableApps.find((a) => a.id === formData.application)
       newIssue.vendorId = app?.shortName
     }
 
