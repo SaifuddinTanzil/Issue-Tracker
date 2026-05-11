@@ -127,8 +127,8 @@ export default function IssueDetailPage() {
   const currentUserRole: string = resolvedRole || userProfile?.role || "Reporter"
   const currentUserName = userProfile?.name || user?.email?.split('@')[0] || "Unknown"
   const isReporter = issue.reporter === currentUserName || issue.reporter === user?.email || issue.reporter === user?.id
-  const isAdmin = currentUserRole === "Admin"
-  const isVendorLikeResolver = ["resolver", "vendor"].includes(currentUserRole.toLowerCase())
+  const isAdmin = currentUserRole?.toString().toLowerCase() === "admin"
+  const isVendorLikeResolver = ["resolver", "vendor"].includes(currentUserRole.toString().toLowerCase())
   const visibleStatusOptions = Object.entries(statusConfig).filter(
     ([key]) => !isVendorLikeResolver || key !== "closed",
   )
@@ -136,7 +136,7 @@ export default function IssueDetailPage() {
 
   const isStatusOptionDisabled = (optionStatus: string) => {
     // Only Reporter or Admin can close tickets
-    if (optionStatus === "closed" && !isReporter && currentUserRole !== "Admin") {
+    if (optionStatus === "closed" && !isReporter && currentUserRole?.toString().toLowerCase() !== "admin") {
       return true
     }
     return false

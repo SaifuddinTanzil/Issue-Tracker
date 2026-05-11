@@ -371,9 +371,10 @@ export async function updateManagedUserVendor(userId: string, vendorId: string |
 }
 
 export function canUpdateIssue(role?: string | null): boolean {
-  return role === "Admin" || role === "Resolver"
+  const r = role?.toString().toLowerCase()
+  return r === "admin" || r === "resolver"
 }
 
 export function canDeleteIssue(role?: string | null): boolean {
-  return role === "Admin"
+  return role?.toString().toLowerCase() === "admin"
 }

@@ -20,7 +20,7 @@ import {
 
 import { issueFormSchema, type IssueFormData } from "@/lib/schema";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
-import { issues, addStoredIssue, type Issue, type Severity, type Category, type Environment as MockEnv } from "@/lib/mock-data";
+import { addStoredIssue, type Issue, type Severity, type Category, type Environment as MockEnv } from "@/lib/mock-data";
 import {
   APPLICATIONS,
   ENVIRONMENTS,
@@ -248,15 +248,14 @@ export default function IssueSubmissionForm() {
       "Prod": "production"
     };
 
-    const newIssue: Issue = {
-      id: `UAT-${String(issues.length + 1).padStart(3, '0')}`,
+    const newIssue: Omit<Issue, "id"> = {
       title: data.title,
       application: app?.name || "Unknown App",
       status: "open",
       vendorId: resolvedVendorId ?? app?.code,
       severity: (sev?.slug as Severity) || "medium",
       category: (cat?.slug as Category) || "bug",
-      environment: envMap[data.environment] || "uat",
+      environment: envMap[data.environment] || "Ho-uat",
       assignedTo: "Unassigned",
       reporter: "Sarah Ahmed",
       createdAt: new Date().toISOString(),
@@ -269,7 +268,7 @@ export default function IssueSubmissionForm() {
     };
 
     // Save to localStorage so it persists across page navigations and reloads
-    addStoredIssue(newIssue);
+    await addStoredIssue(newIssue);
 
     console.log("──── ✅ Issue Successfully Added to Mock Store ────");
     console.log(JSON.stringify(newIssue, null, 2));

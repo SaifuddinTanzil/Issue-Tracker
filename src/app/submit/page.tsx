@@ -19,7 +19,8 @@ import {
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { AppLayout } from "@/components/app-layout"
 import { useAuth } from "@/components/auth-provider"
-import { categoryConfig, addStoredIssue, getStoredIssues, addStoredNotification, type Issue, type Severity, type Category, type Environment } from "@/lib/mock-data"
+import { categoryConfig, addStoredNotification, type Severity, type Category, type Environment } from "@/lib/mock-data"
+import { createIssue } from "@/app/actions/issues"
 import { createClient as createBrowserClient } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
 import { getAllowedAppsForUser } from "@/lib/access-control"
@@ -48,6 +49,7 @@ export default function SubmitIssuePage() {
   const [files, setFiles] = useState<File[]>([])
   const [externalUrl, setExternalUrl] = useState("")
   const [submitted, setSubmitted] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
   const { user, userProfile } = useAuth()
   const [allowedApps, setAllowedApps] = useState<string[]>([])
 
@@ -123,71 +125,47 @@ export default function SubmitIssuePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setSubmitError(null)
 
-    // Convert files to base64 data URLs so they persist in localStorage
-    const fileDataUrls: string[] = []
-    for (const file of files) {
-      const dataUrl = await new Promise<string>((resolve) => {
-        const reader = new FileReader()
-        reader.onloadend = () => resolve(reader.result as string)
-        reader.readAsDataURL(file)
+    if (!formData.application || !formData.environment || !formData.module || !formData.title || !formData.category) {
+      setSubmitError("Please fill in all required fields before submitting.")
+      return
+    }
+
+    try {
+      // Convert files to base64 data URLs so they persist in localStorage
+      const fileDataUrls: string[] = []
+      for (const file of files) {
+        const dataUrl = await new Promise<string>((resolve) => {
+          const reader = new FileReader()
+          reader.onloadend = () => resolve(reader.result as string)
+          reader.readAsDataURL(file)
+        })
+        fileDataUrls.push(dataUrl)
+      }
+
+      const supabase = createBrowserClient()
+      const createdIssue = await createIssue({
+        applicationId: formData.application,
+        environment: (formData.environment as Environment) || "Ho-uat",
+        module: formData.module || "General",
+        title: formData.title,
+        category: (formData.category as Category) || "bug",
+        severity: (formData.severity as Severity) || "medium",
+        expectedResult: formData.expectedResult,
+        actualResult: formData.actualResult,
+        reproductionSteps: formData.reproductionSteps.split('\n').filter((s) => s.trim()),
+        attachments: fileDataUrls,
+        systemMetadata: {
+          userAgent: navigator.userAgent,
+          platform: navigator.platform,
+          language: navigator.language,
+          screenResolution: `${window.screen.width}x${window.screen.height}`,
+          timestamp: new Date().toISOString(),
+        },
       })
-      fileDataUrls.push(dataUrl)
-    }
 
-    // Build the Issue object
-    const existingIssues = await getStoredIssues()
-    const app = availableApps.find((a) => a.id === formData.application)
-
-    const newIssue: Issue & { vendorId?: string } = {
-      id: `UAT-${String(existingIssues.length + 1).padStart(3, '0')}`,
-      title: formData.title,
-      application: app?.name || "Unknown App",
-      status: "open",
-      severity: (formData.severity as Severity) || "medium",
-      category: (formData.category as Category) || "bug",
-      environment: (formData.environment as Environment) || "uat",
-      assignedTo: "Unassigned",
-      reporter: userProfile?.name || user?.email || "Unknown User",
-      createdAt: new Date().toISOString(),
-      module: formData.module || "General",
-      expectedResult: formData.expectedResult,
-      actualResult: formData.actualResult,
-      reproductionSteps: formData.reproductionSteps.split('\n').filter(s => s.trim()),
-      attachments: fileDataUrls,
-      systemMetadata: {
-        userAgent: navigator.userAgent,
-        platform: navigator.platform,
-        language: navigator.language,
-        screenResolution: `${window.screen.width}x${window.screen.height}`,
-        timestamp: new Date().toISOString(),
-      }
-    }
-
-    // Resolve vendor assignment via apps table (if available)
-    try {
-      const supabase = createBrowserClient()
-      if (supabase?.from) {
-        const { data: appRow } = await supabase
-          .from('apps')
-          .select('vendor_id')
-          .eq('id', formData.application)
-          .maybeSingle()
-
-        newIssue.vendorId = appRow?.vendor_id ?? undefined
-      } else {
-        newIssue.vendorId = undefined
-      }
-    } catch (err) {
-      console.warn('Failed to resolve vendor for application', err)
-      newIssue.vendorId = undefined
-    }
-
-    await addStoredIssue(newIssue)
-
-    // Create notifications for all admins + vendor resolvers matching the assigned vendor
-    try {
-      const supabase = createBrowserClient()
+      // Create notifications for all admins + vendor resolvers matching the assigned vendor
       if (supabase?.from) {
         // admins
         const { data: admins } = await supabase.from('users').select('id,email').eq('role', 'admin')
@@ -197,16 +175,16 @@ export default function SubmitIssuePage() {
               id: `notif-${Date.now()}-${a.id}`,
               userId: a.id,
               title: 'New Issue Submitted',
-              message: `${newIssue.reporter} submitted ${newIssue.id} in ${newIssue.application}.`,
+              message: `${createdIssue.reporter} submitted ${createdIssue.id} in ${createdIssue.application}.`,
               isRead: false,
               createdAt: new Date().toISOString(),
-              linkHref: `/issues/${newIssue.id}`,
+              linkHref: `/issues/${createdIssue.id}`,
             })
           }
         }
 
         // resolvers for vendor
-        const vendorId = (newIssue as any).vendorId
+        const vendorId = createdIssue.vendorId
         if (vendorId) {
           const { data: resolvers } = await supabase.from('users').select('id,email').eq('role', 'resolver').eq('vendor_id', vendorId)
           if (resolvers && Array.isArray(resolvers)) {
@@ -215,10 +193,10 @@ export default function SubmitIssuePage() {
                 id: `notif-${Date.now()}-${r.id}`,
                 userId: r.id,
                 title: 'New Issue Assigned to Vendor',
-                message: `${newIssue.reporter} submitted ${newIssue.id} in ${newIssue.application}.`,
+                message: `${createdIssue.reporter} submitted ${createdIssue.id} in ${createdIssue.application}.`,
                 isRead: false,
                 createdAt: new Date().toISOString(),
-                linkHref: `/issues/${newIssue.id}`,
+                linkHref: `/issues/${createdIssue.id}`,
               })
             }
           }
@@ -229,32 +207,25 @@ export default function SubmitIssuePage() {
           id: `notif-${Date.now()}`,
           userId: "admin@company.com",
           title: "New Issue Submitted",
-          message: `${newIssue.reporter} submitted ${newIssue.id} in ${newIssue.application}.`,
+          message: `${createdIssue.reporter} submitted ${createdIssue.id} in ${createdIssue.application}.`,
           isRead: false,
           createdAt: new Date().toISOString(),
-          linkHref: `/issues/${newIssue.id}`,
+          linkHref: `/issues/${createdIssue.id}`,
         })
       }
+
+      // Show success message
+      setSubmitted(true)
+
+      // Redirect after a short delay so user sees the message
+      setTimeout(() => {
+        router.push("/issues")
+      }, 2000)
     } catch (err) {
-      console.warn('Notification creation failed, falling back to single admin notification', err)
-      await addStoredNotification({
-        id: `notif-${Date.now()}`,
-        userId: "admin@company.com",
-        title: "New Issue Submitted",
-        message: `${newIssue.reporter} submitted ${newIssue.id} in ${newIssue.application}.`,
-        isRead: false,
-        createdAt: new Date().toISOString(),
-        linkHref: `/issues/${newIssue.id}`,
-      })
+      console.error("Issue submission failed:", err)
+      setSubmitted(false)
+      setSubmitError(err instanceof Error ? err.message : "Issue submission failed. Please try again.")
     }
-
-    // Show success message
-    setSubmitted(true)
-
-    // Redirect after a short delay so user sees the message
-    setTimeout(() => {
-      router.push("/issues")
-    }, 2000)
   }
 
   const updateField = (field: string, value: string) => {
@@ -273,6 +244,14 @@ export default function SubmitIssuePage() {
         </div>
 
         <form onSubmit={handleSubmit}>
+          {submitError && (
+            <Alert className="mb-4" variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Submission failed</AlertTitle>
+              <AlertDescription>{submitError}</AlertDescription>
+            </Alert>
+          )}
+
           {/* Success Toast */}
           {submitted && (
             <div className="fixed top-6 right-6 z-50 animate-in slide-in-from-top-2 fade-in duration-300">

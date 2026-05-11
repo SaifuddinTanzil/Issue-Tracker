@@ -15,6 +15,8 @@ export interface Issue {
   environment: Environment
   assignedTo: string
   reporter: string
+  reporterId?: string
+  reporterEmail?: string
   createdAt: string
   module: string
   expectedResult: string
@@ -140,6 +142,8 @@ function normalizeIssueRow(row: SupabaseRow): Issue {
     environment: readText(row, ["environment"], "Ho-uat") as Environment,
     assignedTo: readText(row, ["assignedTo", "assigned_to"], "Unassigned"),
     reporter: readText(row, ["reporter"], "Unknown User"),
+    reporterId: readText(row, ["reporterId", "reporter_user_id"], "") || undefined,
+    reporterEmail: readText(row, ["reporterEmail", "reporter_email"], "") || undefined,
     createdAt: readText(row, ["createdAt", "created_at"], new Date().toISOString()),
     module: readText(row, ["module"], "General"),
     expectedResult: readText(row, ["expectedResult", "expected_result"], ""),
@@ -176,6 +180,37 @@ function normalizeNotificationRow(row: SupabaseRow): AppNotification {
   }
 }
 
+function extractMissingColumn(errorMessage: string): string | null {
+  const match = errorMessage.match(/Could not find the '([^']+)' column/i)
+  return match?.[1] ?? null
+}
+
+async function insertIssueWithFallback(payload: Record<string, unknown>): Promise<SupabaseRow> {
+  const mutablePayload: Record<string, unknown> = { ...payload }
+
+  // Retry with progressively smaller payload when DB schema differs.
+  for (let attempt = 0; attempt < 12; attempt++) {
+    const { data, error } = await supabase
+      .from("issues")
+      .insert([mutablePayload])
+      .select("*")
+      .single()
+
+    if (!error) {
+      return (data ?? {}) as SupabaseRow
+    }
+
+    const missingColumn = extractMissingColumn(error.message)
+    if (!missingColumn || !(missingColumn in mutablePayload)) {
+      throw new Error(`Failed to insert issue: ${error.message}`)
+    }
+
+    delete mutablePayload[missingColumn]
+  }
+
+  throw new Error("Failed to insert issue: too many schema mismatch retries")
+}
+
 export async function getStoredIssues(): Promise<Issue[]> {
   const { data, error } = await supabase
     .from("issues")
@@ -189,31 +224,47 @@ export async function getStoredIssues(): Promise<Issue[]> {
   return data.map((row) => normalizeIssueRow(row as SupabaseRow))
 }
 
-export async function addStoredIssue(issue: Issue): Promise<void> {
+export async function addStoredIssue(issue: Omit<Issue, "id">): Promise<Issue> {
   const payload = {
-    ...issue,
-    vendor_id: issue.vendorId ?? null,
+    title: issue.title,
     app_name: issue.application,
-    created_at: issue.createdAt,
+    status: issue.status,
+    severity: issue.severity,
+    category: issue.category,
+    environment: issue.environment,
     assigned_to: issue.assignedTo,
+    reporter: issue.reporter,
+    reporter_user_id: issue.reporterId ?? null,
+    reporter_email: issue.reporterEmail ?? null,
+    created_at: issue.createdAt,
+    module: issue.module,
     expected_result: issue.expectedResult,
     actual_result: issue.actualResult,
     reproduction_steps: issue.reproductionSteps,
+    attachments: issue.attachments,
+    vendor_id: issue.vendorId ?? null,
+    systemMetadata: issue.systemMetadata ?? null,
   }
 
-  const { error } = await supabase
-    .from("issues")
-    .insert([payload])
+  const data = await insertIssueWithFallback(payload)
 
-  if (error) {
-    console.error("Failed to insert issue:", error)
-  }
+  return normalizeIssueRow((data ?? {}) as SupabaseRow)
 }
 
 export async function updateStoredIssue(issueId: string, updates: Partial<Issue>): Promise<void> {
-  const payload: Record<string, unknown> = {
-    ...updates,
-  }
+  const payload: Record<string, unknown> = {}
+
+  if (updates.title !== undefined) payload.title = updates.title
+  if (updates.status !== undefined) payload.status = updates.status
+  if (updates.severity !== undefined) payload.severity = updates.severity
+  if (updates.category !== undefined) payload.category = updates.category
+  if (updates.environment !== undefined) payload.environment = updates.environment
+  if (updates.module !== undefined) payload.module = updates.module
+  if (updates.reporter !== undefined) payload.reporter = updates.reporter
+  if (updates.reporterId !== undefined) payload.reporter_user_id = updates.reporterId
+  if (updates.reporterEmail !== undefined) payload.reporter_email = updates.reporterEmail
+  if (updates.attachments !== undefined) payload.attachments = updates.attachments
+  if (updates.systemMetadata !== undefined) payload.systemMetadata = updates.systemMetadata
 
   if (updates.vendorId !== undefined) payload.vendor_id = updates.vendorId
   if (updates.application !== undefined) payload.app_name = updates.application

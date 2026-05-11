@@ -45,13 +45,19 @@ export default function SignUpPage() {
     
     // Create the public.user profile
     if (data.user) {
-      await supabase.from('users').insert({
+      const { error: profileError } = await supabase.from('users').upsert({
         id: data.user.id,
         email: data.user.email,
         name: email.split('@')[0], // Use part of email as mock name
         avatar: email.substring(0, 2).toUpperCase(),
         role: 'Reporter'
       });
+
+      if (profileError) {
+        setError(`Account created, but profile sync failed: ${profileError.message}`)
+        setIsLoading(false)
+        return
+      }
     }
 
     setSuccess(true);

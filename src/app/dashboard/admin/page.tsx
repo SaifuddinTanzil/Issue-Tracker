@@ -59,8 +59,9 @@ const ASSIGNABLE_ROLE_OPTIONS: AssignableRole[] = ["Resolver", "Reporter"]
 const DIRECTORY_ROLE_OPTIONS: UserRole[] = ["Admin", "Resolver", "Reporter"]
 
 function getRoleBadgeClass(role: UserRole): string {
-  if (role === "Admin") return "bg-violet-100 text-violet-800 hover:bg-violet-100"
-  if (role === "Resolver") return "bg-amber-100 text-amber-800 hover:bg-amber-100"
+  const r = role.toString().toLowerCase()
+  if (r === "admin") return "bg-violet-100 text-violet-800 hover:bg-violet-100"
+  if (r === "resolver") return "bg-amber-100 text-amber-800 hover:bg-amber-100"
   return "bg-gray-100 text-gray-800 hover:bg-gray-100"
 }
 
@@ -79,7 +80,7 @@ export default function AdminDashboardPage() {
   const [directorySearch, setDirectorySearch] = useState("")
 
   useEffect(() => {
-    if (userProfile?.role && userProfile.role !== "Admin") {
+    if (userProfile?.role && userProfile.role.toString().toLowerCase() !== "admin") {
       router.push("/")
       return
     }
@@ -266,7 +267,7 @@ export default function AdminDashboardPage() {
     run()
   }
 
-  if (userProfile?.role && userProfile.role !== "Admin") {
+  if (userProfile?.role && userProfile.role.toString().toLowerCase() !== "admin") {
     return (
       <AppLayout>
         <div className="rounded-lg border bg-card p-6">

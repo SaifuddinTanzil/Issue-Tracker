@@ -21,10 +21,10 @@ export function AppSidebar() {
 
   const sidebarItems = [
     ...navigation,
-    ...(userProfile?.role === "Admin"
+    ...(userProfile?.role?.toString().toLowerCase() === "admin"
       ? [{ name: "Admin", href: "/dashboard/admin", icon: ShieldCheck }]
       : []),
-    ...(userProfile?.role === "Vendor"
+    ...(userProfile?.role?.toString().toLowerCase() === "vendor"
       ? [{ name: "Vendor Dashboard", href: "/vendor/dashboard", icon: BriefcaseBusiness }]
       : []),
   ]

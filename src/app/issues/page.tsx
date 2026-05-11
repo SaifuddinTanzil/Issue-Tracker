@@ -26,18 +26,15 @@ import { useAuth } from "@/components/auth-provider"
 import { useAppPreferences } from "@/components/app-preferences-provider"
 import { StatusBadge, SeverityBadge, CategoryBadge } from "@/components/status-badge"
 import {
-  issues,
-  getStoredIssues,
   applications,
   statusConfig,
   severityConfig,
   categoryConfig,
-  type IssueStatus,
-  type Severity,
-  type Category,
   type Issue,
 } from "@/lib/mock-data"
+import { getAllIssues } from "@/app/actions/issues"
 import { getAllowedAppsForUser } from "@/lib/access-control"
+import { createClient as createBrowserClient } from "@/lib/supabase/client"
 import { exportIssuesToCSV } from "@/lib/export-utils"
 
 const environments = [
@@ -60,32 +57,47 @@ export default function IssuesPage() {
   
   const [localIssues, setLocalIssues] = useState<Issue[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [availableApps, setAvailableApps] = useState<{ id: string; name: string }[]>([])
   const [allowedApps, setAllowedApps] = useState<string[]>([])
 
   useEffect(() => {
-    getStoredIssues().then(data => {
-      setLocalIssues(data)
-      setIsLoading(false)
-    })
+    getAllIssues()
+      .then((data) => {
+        setLocalIssues(data as Issue[])
+      })
+      .finally(() => {
+        setIsLoading(false)
+      })
+  }, [user?.email, userProfile?.role])
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const supabase = createBrowserClient()
+        const { data } = await supabase.from('apps').select('id, name').order('name', { ascending: true })
+        if (Array.isArray(data)) {
+          setAvailableApps(data.map((a: any) => ({ id: String(a.id), name: a.name })))
+        }
+      } catch (err) {
+        console.warn('Failed to load apps for dropdown', err)
+      }
+    }
+    load()
   }, [])
 
   useEffect(() => {
-    getAllowedAppsForUser(user?.email, userProfile?.role).then(setAllowedApps)
+    getAllowedAppsForUser(user?.email, userProfile?.role).then((apps) => setAllowedApps(apps))
   }, [user?.email, userProfile?.role])
 
-  const hasMultiAppAccess = allowedApps.includes("*") || allowedApps.length > 1
-  const singleAppName = "BRAC Microfinance Portal"
   const visibleApplications = allowedApps.includes("*")
-    ? applications
-    : applications.filter((app) => allowedApps.includes(app.name))
+    ? availableApps
+    : availableApps.filter((app) => allowedApps.includes(app.name))
+
+  const hasMultiAppAccess = visibleApplications.length > 1
+  const singleAppName = visibleApplications[0]?.name || "Your Assigned Application"
 
   const filteredIssues = useMemo(() => {
-    const scopedIssues =
-      allowedApps.includes("*")
-        ? localIssues
-        : localIssues.filter((issue) => allowedApps.includes(issue.application))
-
-    return scopedIssues.filter((issue) => {
+    return localIssues.filter((issue) => {
       const matchesSearch =
         searchQuery === "" ||
         issue.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -98,7 +110,7 @@ export default function IssuesPage() {
 
       return matchesSearch && matchesStatus && matchesSeverity && matchesCategory && matchesEnvironment && matchesApplication
     })
-  }, [localIssues, allowedApps, searchQuery, statusFilter, severityFilter, categoryFilter, environmentFilter, applicationFilter])
+  }, [localIssues, searchQuery, statusFilter, severityFilter, categoryFilter, environmentFilter, applicationFilter])
 
   const totalPages = Math.ceil(filteredIssues.length / itemsPerPage)
   const paginatedIssues = filteredIssues.slice(

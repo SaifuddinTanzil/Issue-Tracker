@@ -26,19 +26,15 @@ import { useAuth } from "@/components/auth-provider"
 import { useAppPreferences } from "@/components/app-preferences-provider"
 import { StatusBadge, SeverityBadge, CategoryBadge } from "@/components/status-badge"
 import {
-  issues,
-  getStoredIssues,
   applications,
   statusConfig,
   severityConfig,
   categoryConfig,
-  users,
-  type IssueStatus,
-  type Severity,
-  type Category,
   type Issue,
 } from "@/lib/mock-data"
+import { getMyIssues } from "@/app/actions/issues"
 import { getAllowedAppsForUser } from "@/lib/access-control"
+import { createClient as createBrowserClient } from "@/lib/supabase/client"
 
 const environments = [
   { value: "uat", label: "UAT" },
@@ -59,42 +55,55 @@ export default function MyIssuesPage() {
   
   const [localIssues, setLocalIssues] = useState<Issue[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const { user, userProfile } = useAuth()
+
+  useEffect(() => {
+    getMyIssues()
+      .then((data) => {
+        setLocalIssues(data as Issue[])
+      })
+      .finally(() => {
+        setIsLoading(false)
+      })
+  }, [user?.email, userProfile?.role])
+
+  const [availableApps, setAvailableApps] = useState<{ id: string; name: string }[]>([])
   const [allowedApps, setAllowedApps] = useState<string[]>([])
 
   useEffect(() => {
-    getStoredIssues().then(data => {
-      setLocalIssues(data)
-      setIsLoading(false)
-    })
+    const load = async () => {
+      try {
+        const supabase = createBrowserClient()
+        const { data } = await supabase.from('apps').select('id, name').order('name', { ascending: true })
+        if (Array.isArray(data)) setAvailableApps(data.map((a: any) => ({ id: String(a.id), name: a.name })))
+      } catch (err) {
+        console.warn('Failed to load apps for dropdown', err)
+      }
+    }
+    load()
   }, [])
 
-  const { user, userProfile } = useAuth()
-  const visibleApplications = allowedApps.includes("*")
-    ? applications
-    : applications.filter((app) => allowedApps.includes(app.name))
-
   useEffect(() => {
-    getAllowedAppsForUser(user?.email, userProfile?.role).then(setAllowedApps)
+    getAllowedAppsForUser(user?.email, userProfile?.role).then((apps) => setAllowedApps(apps))
   }, [user?.email, userProfile?.role])
+
+  const visibleApplications = allowedApps.includes("*") ? availableApps : availableApps.filter((app) => allowedApps.includes(app.name))
 
   // Only consider issues reported by the current user
   const myIssues = useMemo(() => {
     if (!user) return []
-    // The "reporter" was initially saved as name, but for new issues it should be email or ID.
+    const userEmail = user.email?.toLowerCase()
+    const userName = userProfile?.name?.toLowerCase()
     return localIssues.filter((issue) => 
-      issue.reporter === userProfile?.name || 
-      issue.reporter === user.email || 
-      issue.reporter === user.id
+      issue.reporterId === user.id ||
+      issue.reporterEmail?.toLowerCase() === userEmail ||
+      issue.reporter?.toLowerCase() === userEmail ||
+      issue.reporter?.toLowerCase() === userName
     )
   }, [localIssues, user, userProfile])
 
   const filteredIssues = useMemo(() => {
-    const scopedIssues =
-      allowedApps.includes("*")
-        ? myIssues
-        : myIssues.filter((issue) => allowedApps.includes(issue.application))
-
-    return scopedIssues.filter((issue) => {
+    return myIssues.filter((issue) => {
       const matchesSearch =
         searchQuery === "" ||
         issue.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -107,7 +116,7 @@ export default function MyIssuesPage() {
 
       return matchesSearch && matchesStatus && matchesSeverity && matchesCategory && matchesEnvironment && matchesApplication
     })
-  }, [myIssues, allowedApps, searchQuery, statusFilter, severityFilter, categoryFilter, environmentFilter, applicationFilter])
+  }, [myIssues, searchQuery, statusFilter, severityFilter, categoryFilter, environmentFilter, applicationFilter])
 
   const totalPages = Math.ceil(filteredIssues.length / itemsPerPage)
   const paginatedIssues = filteredIssues.slice(
