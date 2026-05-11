@@ -180,8 +180,7 @@ export default function SubmitIssuePage() {
       }
     } catch (err) {
       console.warn('Failed to resolve vendor for application', err)
-      const app = availableApps.find((a) => a.id === formData.application)
-      newIssue.vendorId = app?.shortName
+      newIssue.vendorId = undefined
     }
 
     await addStoredIssue(newIssue)
